@@ -1,0 +1,106 @@
+#include <iostream>
+#include <cuda_runtime.h>
+#include "pfc/pfc_threading.h"
+#include "pfc/pfc_timing.h"
+#include "bitmap/pfc_bitmap_3.h"
+#include <complex>
+
+using namespace std::complex_literals;
+
+const auto g_colors = 0;
+const auto g_infinity = 0;
+
+template<typename complex_t>
+inline int iterate(complex_t z, const complex_t & c) noexcept {
+    auto i {0};
+    do{
+        square(z) +=c;
+    }while ((i++<g_colors) && (norm(z) < g_infinity));
+}
+
+void check(cudaError_t const e) {
+    if (e != cudaSuccess) {
+        throw std::runtime_error{ cudaGetErrorName(e) };
+    }
+}
+
+
+
+void test_1 (pfc::bitmap & bmp) {
+    for (auto & pixel : bmp.pixel_span ()) {
+        pixel = {128, 123, 64};
+    }
+
+    bmp.to_file ("./bitmap-1.bmp");
+}
+
+void test_2 (pfc::bitmap & bmp) {
+    for (int y {0}; y < bmp.height (); ++y) {
+        for (int x {0}; x < bmp.width (); ++x) {
+            bmp.at (x, y) = {64, 123, 128};
+        }
+    }
+
+    bmp.to_file ("./bitmap-2.bmp");
+}
+
+void test_3 (pfc::bitmap & bmp) {
+    auto const height {bmp.height ()};
+    auto const width  {bmp.width ()};
+
+    auto & span {bmp.pixel_span ()};
+
+    auto * const p_buffer {std::data (span)};   // get pointer to first pixel in pixel buffer
+    auto const   size     {std::size (span)};   // get size of pixel buffer
+
+    for (int y {0}; y < height; ++y) {
+        for (int x {0}; x < width; ++x) {
+            p_buffer[y * width + x] = {
+                    pfc::byte_t (255 * y / height), 123, 64
+            };
+        }
+    }
+
+    bmp.to_file ("./bitmap-3.bmp");
+}
+
+void checked_main() {
+    int * hp_indices_d = nullptr;
+    int * hp_indices_h = nullptr;
+    int * dp_indices = nullptr;
+    float3 * hp_points = nullptr;
+    float3 * dp_points = nullptr;
+
+    check(cudaSetDevice(0));
+    cudaDeviceProp prop{}; check(cudaGetDeviceProperties(&prop, 0));
+
+    std::cout << "Device:\t" <<prop.name << '\n';
+    std::cout << "Compute Capability:\t" << prop.major << '.' << prop.minor << '\n';
+    std::cout << "-----------------------------------" << std::endl;
+
+    std::cout << "Warming Up CPU" << std::endl;
+    pfc::warm_up_cpu();
+    std::cout << "Finished" << std::endl;
+
+    cudaDeviceSynchronize();
+    check(cudaDeviceReset());
+}
+
+int main () {
+    pfc::bitmap bmp {5000, 5000};
+
+
+    for (int y {0}; y < bmp.height(); ++y) {
+        for (int x {0}; x < bmp.width(); ++x) {
+            bmp.at(x,y) = {
+                    pfc::byte_t (255 * y / bmp.height()), 123, 64
+            };
+        }
+    }
+
+    bmp.to_file("test.bmp");
+
+    std::complex<double> z1 = 2i ;
+    z1+=1.;
+    std::cout << z1 << std::endl;
+}
