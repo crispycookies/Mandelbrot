@@ -11,27 +11,25 @@
 
 using namespace std;
 
-float width = 8000;
-float height = 4000;
-
 int g_colors = 255;
 int g_infinity = {1225000000};
 
 template<typename complex_t>
-inline complex_t square(complex_t z){
+inline complex_t square(complex_t & z){
     return z*z;
 }
 
 template<typename complex_t>
-inline int iterate(complex_t z, const complex_t & c) noexcept {
+inline int iterate(const complex_t & c) noexcept {
     auto i {0};
+    complex<double> z = 0;
     do{
-        z= square<complex_t>(z);
-        z+=c;
+        z = square(z);
+        z += c;
     }while((i++ < g_colors) && (norm(z)<g_infinity));
     return i;
 }
-
+// 28280ms
 std::vector<std::shared_ptr<pfc::bitmap>> CalculateOnCPU(std::size_t count, float, float, float, float, std::size_t height, std::size_t width, std::size_t additional_threads = 0){
     std::vector<std::shared_ptr<pfc::bitmap>> retval;
 
@@ -53,16 +51,69 @@ std::vector<std::shared_ptr<pfc::bitmap>> CalculateOnCPU(std::size_t count, floa
 
     //calculating
     std::cout << "Calculating Picture(s)["+std::to_string(count)+"]" << std::endl;
+
+
+
     auto calculation = pfc::timed_run([&]() {
         for(auto bmp : retval){
             pfc::parallel_range<size_t>(std::thread::hardware_concurrency()+additional_threads, height, [&](size_t t, size_t begin, size_t end) {
+                complex<double> c0 = 0;
+                complex<double> c1 = 0;
+                complex<double> c2 = 0;
+                complex<double> c3 = 0;
+                complex<double> c4 = 0;
+                complex<double> c5 = 0;
+                complex<double> c6 = 0;
+                complex<double> c7 = 0;
+
+
                 for (int y = begin; y < end; y++) {
-                    for (int x{0}; x < bmp->width(); ++x) {
-                        complex<double> c{(float)x/ bmp->width()-1.5, (float)y/bmp->height()-0.5};
-                        complex<double> z = 0;
+                    //21 s
+                    //18 s
+                    // Loop Unrolling
+                    for (int x{0}; x < bmp->width(); x+=8) {
+                        c0 = {(float)x/ bmp->width()-1.5, (float)y/bmp->height()-0.5};
+                        c1 = {(float)(x+1)/ bmp->width()-1.5, (float)y/bmp->height()-0.5};
+                        c2 = {(float)(x+2)/ bmp->width()-1.5, (float)y/bmp->height()-0.5};
+                        c3 = {(float)(x+3)/ bmp->width()-1.5, (float)y/bmp->height()-0.5};
+                        c4 = {(float)(x+4)/ bmp->width()-1.5, (float)y/bmp->height()-0.5};
+                        c5 = {(float)(x+5)/ bmp->width()-1.5, (float)y/bmp->height()-0.5};
+                        c6 = {(float)(x+6)/ bmp->width()-1.5, (float)y/bmp->height()-0.5};
+                        c7 = {(float)(x+7)/ bmp->width()-1.5, (float)y/bmp->height()-0.5};
+
+
                         bmp->at(x, y) = {
-                                pfc::byte_t(iterate(z, c)), 0, 0
+                                pfc::byte_t(iterate( c0)), 0, 0
                         };
+
+                        bmp->at(x+1, y) = {
+                                pfc::byte_t(iterate( c1)), 0, 0
+                        };
+
+                        bmp->at(x+2, y) = {
+                                pfc::byte_t(iterate( c2)), 0, 0
+                        };
+
+                        bmp->at(x+3, y) = {
+                                pfc::byte_t(iterate( c3)), 0, 0
+                        };
+
+                        bmp->at(x+4, y) = {
+                                pfc::byte_t(iterate( c4)), 0, 0
+                        };
+
+                        bmp->at(x+5, y) = {
+                                pfc::byte_t(iterate( c5)), 0, 0
+                        };
+
+                        bmp->at(x+6, y) = {
+                                pfc::byte_t(iterate( c6)), 0, 0
+                        };
+
+                        bmp->at(x+7, y) = {
+                                pfc::byte_t(iterate( c7)), 0, 0
+                        };
+
                     }
                 }
             });
@@ -79,7 +130,7 @@ std::vector<std::shared_ptr<pfc::bitmap>> CalculateOnCPU(std::size_t count, floa
 int main ()  {
 
 
-    std::vector<std::shared_ptr<pfc::bitmap>> slides = CalculateOnCPU(200,0,0,0,0,8000,4000,std::thread::hardware_concurrency());
+    std::vector<std::shared_ptr<pfc::bitmap>> slides = CalculateOnCPU(100,0,0,0,0,4000,4000,std::thread::hardware_concurrency());
 
 
 
