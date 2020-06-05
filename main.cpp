@@ -32,7 +32,7 @@ inline int iterate(int & i, complex_t & z, const complex_t & c) noexcept {
     return i;
 }
 // 28280ms
-std::vector<std::shared_ptr<pfc::bitmap>> CalculateOnCPU(std::size_t count, float, float, float, float, std::size_t height, std::size_t width, std::size_t additional_threads = 0){
+std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::size_t count, float minx, float maxx, float miny, float maxy, std::size_t height, std::size_t width, std::size_t additional_threads = 0){
     std::vector<std::shared_ptr<pfc::bitmap>> retval;
 
     //preallocating
@@ -45,11 +45,6 @@ std::vector<std::shared_ptr<pfc::bitmap>> CalculateOnCPU(std::size_t count, floa
     std::cout << "Allocation took " << std::chrono::duration_cast<std::chrono::milliseconds>(pre_alloc).count() << "ms" << std::endl;
     std::cout << std::endl;
 
-    std::cout << "Warming Up CPU" << std::endl;
-    pfc::warm_up_cpu();
-    std::cout << "Finished" << std::endl;
-    std::cout << std::endl;
-
     //calculating
     std::cout << "Calculating Picture(s)["+std::to_string(count)+"]" << std::endl;
 
@@ -59,7 +54,7 @@ std::vector<std::shared_ptr<pfc::bitmap>> CalculateOnCPU(std::size_t count, floa
         for(auto bmp : retval){
             pfc::parallel_range<size_t>(additional_threads, height, [&](size_t t, size_t begin, size_t end) {
 
-                complex<double> c[16] = {0};
+                complex<float> c[16] = {0};
                 for (int y = begin; y < end; y++) {
                     //21 s
                     //18 s
@@ -67,27 +62,27 @@ std::vector<std::shared_ptr<pfc::bitmap>> CalculateOnCPU(std::size_t count, floa
                     auto & span {bmp->pixel_span ()};
                     auto * const p_buffer {std::data (span)};
                     for (int x{0}; x < bmp->width(); x+=16) {
-                        complex<double> z[16] =  {0};
+                        complex<float> z[16] =  {0};
                         int i[16] = {0};
 
-                        c[0] = {(float) x / bmp->width() - 1.5, (float) y / bmp->height() - 0.5};
-                        c[1] = {(float) (x + 1) / bmp->width() - 1.5, (float) y / bmp->height() - 0.5};
+                        c[0] = {(float)((float) x / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
+                        c[1] = {(float)((float) (x + 1) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
+                        c[2] = {(float)((float) (x + 2) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
+                        c[3] = {(float)((float) (x + 3) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
 
-                        c[2] = {(float) (x + 2) / bmp->width() - 1.5, (float) y / bmp->height() - 0.5};
-                        c[3] = {(float) (x + 3) / bmp->width() - 1.5, (float) y / bmp->height() - 0.5};
-                        c[4] = {(float) (x + 4) / bmp->width() - 1.5, (float) y / bmp->height() - 0.5};
-                        c[5] = {(float) (x + 5) / bmp->width() - 1.5, (float) y / bmp->height() - 0.5};
-                        c[6] = {(float) (x + 6) / bmp->width() - 1.5, (float) y / bmp->height() - 0.5};
-                        c[7] = {(float) (x + 7) / bmp->width() - 1.5, (float) y / bmp->height() - 0.5};
-                        c[8] = {(float) (x + 8) / bmp->width() - 1.5, (float) y / bmp->height() - 0.5};
-                        c[9] = {(float) (x + 9) / bmp->width() - 1.5, (float) y / bmp->height() - 0.5};
+                        c[4] = {(float)((float) (x + 4) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
+                        c[5] = {(float)((float) (x + 5) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
+                        c[6] = {(float)((float) (x + 6) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
+                        c[7] = {(float)((float) (x + 7) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
+                        c[8] = {(float)((float) (x + 8) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
+                        c[9] = {(float)((float) (x + 9) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
 
-                        c[10] = {(float) (x + 10) / bmp->width() - 1.5, (float) y / bmp->height() - 0.5};
-                        c[11] = {(float) (x + 11) / bmp->width() - 1.5, (float) y / bmp->height() - 0.5};
-                        c[12] = {(float) (x + 12) / bmp->width() - 1.5, (float) y / bmp->height() - 0.5};
-                        c[13] = {(float) (x + 13) / bmp->width() - 1.5, (float) y / bmp->height() - 0.5};
-                        c[14] = {(float) (x + 14) / bmp->width() - 1.5, (float) y / bmp->height() - 0.5};
-                        c[15] = {(float) (x + 15) / bmp->width() - 1.5, (float) y / bmp->height() - 0.5};
+                        c[10] = {(float)((float) (x + 10) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
+                        c[11] = {(float)((float) (x + 11) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
+                        c[12] = {(float)((float) (x + 12) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
+                        c[13] = {(float)((float) (x + 13) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
+                        c[14] = {(float)((float) (x + 14) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
+                        c[15] = {(float)((float) (x + 15) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
 
                         var r0 = pfc::byte_t(iterate(i[0],z[0],c[0]));
                         var r1 = pfc::byte_t(iterate(i[1],z[1],c[1]));
@@ -163,28 +158,61 @@ std::vector<std::shared_ptr<pfc::bitmap>> CalculateOnCPU(std::size_t count, floa
             });
         }
     });
-    std::cout << "CPU Calculation took " << std::chrono::duration_cast<std::chrono::milliseconds>(calculation).count() << "ms" << std::endl;
+    std::cout << "CPU Calculation took " << std::chrono::duration_cast<std::chrono::milliseconds>(calculation).count() << "ms\n" << std::endl;
 
-    return retval;
+    return {retval, std::chrono::duration_cast<std::chrono::milliseconds>(calculation).count()};
 }
 
 
-int main ()  {
-
-
-    std::vector<std::shared_ptr<pfc::bitmap>> slides = CalculateOnCPU(10,0,0,0,0,4608,8192,800);
-    //std::vector<std::shared_ptr<pfc::bitmap>> slides2 =  CalculateOnCPU(100,0,0,0,0,4608,8192,400);
-
-
-
-    /*int cnt = 0;
+void store(const std::string prefix, std::vector<std::shared_ptr<pfc::bitmap>> slides){
+    static int cnt = 0;
     for(const auto & c : slides){
         if(c == nullptr){
             throw std::string("Failure; Empty Picture");
         }
-        c->to_file("T_mandelbrot_" + std::to_string(cnt) + ".bmp");
+        c->to_file(prefix + std::to_string(cnt) + ".bmp");
         cnt++;
-    }*/
+    }
+}
+
+int main ()  {
+
+    try{
+        std::cout << "Warming Up CPU" << std::endl;
+        pfc::warm_up_cpu();
+        std::cout << "Finished" << std::endl;
+        std::cout << std::endl;
+
+        int count = 200;
+
+
+        auto slides_2 = CalculateOnCPU(count/2,0,0,0,0,4608,8192,1000);
+        //store("Mandel2", slides_2.first);
+        slides_2.first.clear();
+        auto slides_3 = CalculateOnCPU(count/2,0,0,0,0,4608,8192,1000);
+        //store("Mandel3", slides_3.first);
+
+        if(slides_3.first.at(0) == nullptr){
+            throw std::string("Cannot Calculate Statistical Data as at least one Element in Result Vector is invalid or empty");
+        }
+
+        var size = slides_3.first.at(0)->size() * sizeof(pfc::BGR_4_t) * count;
+        var time = slides_3.second + slides_3.second;
+
+        if(time == 0){
+            throw std::string("Invalid Time measured");
+        }
+
+        slides_3.first.clear();
+
+        std::cout << "CPU:         " << "R7 3700x @ 4.3 GHz" << std::endl;
+        std::cout << "Runtime:     " << time << "ms (for " << std::to_string(count) << " Bitmaps and " << std::to_string(size) << "MB of Data)" << std::endl;
+        std::cout << "throughput:  " << size/(time*1000) << "MB/s" << std::endl;
+    }
+    catch (const std::string & exe) {
+        std::cerr << "Failed with Message: " << exe << std::endl;
+    }
+
 }
 
 
