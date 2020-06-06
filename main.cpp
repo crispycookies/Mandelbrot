@@ -48,14 +48,16 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
     //calculating
     std::cout << "Calculating Picture(s)["+std::to_string(count)+"]" << std::endl;
 
-
-
-
-    var minx = -2.74529004;
-    var miny = -1.01192498;
-    var maxx = 1.25470996;
-    var maxy = 1.23807502;
-
+    var maxx = left.real();
+    var maxy = left.imag();
+    var minx = right.real();
+    var miny = right.imag();
+/*
+    var maxx = -2.74529004;
+    var maxy = -1.01192498;
+    var minx = 1.25470996;
+    var miny = 1.23807502;
+*/
 
 
     auto calculation = pfc::timed_run([&]() {
@@ -68,10 +70,10 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
             //miny = left.imag();
             //maxy = right.real();
 
-            minx -= (minx) * (1-0.95);
-            miny -= (miny) * (1-0.95);
-            maxx -= (maxx) * (1-0.95);
-            maxy -= (maxy) * (1-0.95);
+            minx -= (minx - zoomPoint.real()) * (1-0.95);
+            miny -= (miny - zoomPoint.imag()) * (1-0.95);
+            maxx -= (maxx - zoomPoint.real()) * (1-0.95);
+            maxy -= (maxy - zoomPoint.imag()) * (1-0.95);
             pfc::parallel_range<size_t>(additional_threads, height, [&](size_t t, size_t begin, size_t end) {
 
 
@@ -188,9 +190,10 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
                         };
                     }
                 }
-            });
+            });/*
             left -= (left-zoomPoint)*(1-factor);
             right -= (right-zoomPoint)*(1*factor);
+            */
         }
     });
     std::cout << "CPU Calculation took " << std::chrono::duration_cast<std::chrono::milliseconds>(calculation).count() << "ms\n" << std::endl;
@@ -212,30 +215,26 @@ void store(const std::string prefix, std::vector<std::shared_ptr<pfc::bitmap>> s
 
 int main ()  {
 
-    var gZoomFactor = 0.95;
-
-    complex<float> zoomPoint = {0.745289981,0.113075003};
-
     try{
         std::cout << "\033[22;32mWarming Up CPU" << std::endl;
         pfc::warm_up_cpu();
         std::cout << "Finished" << std::endl;
         std::cout << std::endl;
 
-        int count = 2;
+        int count = 200;
 
 
-        auto slides_2 = CalculateOnCPU(count/2,{-2.74529004, 1.01192498}, {1.25470996 , 1.23807502}, {-0.745289981 , 0.113075003},0.95,4608,8192,1000);
-        //store("Mandel2", slides_2.first);
-        //slides_2.first.clear();
-        auto slides_3 = CalculateOnCPU(count/2,{-2.74529004, 1.01192498}, {1.25470996 , 1.23807502}, {-0.745289981 , 0.113075003},0.95,4608,8192,1000);
+        auto slides_2 = CalculateOnCPU(count/2,{-2.74529004, -1.01192498}, {1.25470996 , 1.23807502}, {-0.745289981 , 0.113075003},0.95,4608,8192,1000);
+        store("Mandel2", slides_2.first);
+        slides_2.first.clear();
+        auto slides_3 = CalculateOnCPU(count/2,{-2.74529004, -1.01192498}, {1.25470996 , 1.23807502}, {-0.745289981 , 0.113075003},0.95,4608,8192,1000);
         store("Mandel3", slides_3.first);
 
         if(slides_3.first.at(0) == nullptr){
             throw std::string("Cannot Calculate Statistical Data as at least one Element in Result Vector is invalid or empty");
         }
 
-        var size = slides_3.first.at(0)->size() * sizeof(pfc::BGR_4_t) * count;
+        var size = slides_3.first.at(0)->size() * sizeof(pfc::BGR_4_t) * count/1000;
         var time = slides_3.second + slides_3.second;
 
         if(time == 0){
@@ -246,7 +245,8 @@ int main ()  {
 
         std::cout << "CPU:         " << "R7 3700x @ 4.3 GHz" << std::endl;
         std::cout << "Runtime:     " << time << "ms (for " << std::to_string(count) << " Bitmaps and " << std::to_string(size) << "MB of Data)" << std::endl;
-        std::cout << "throughput:  " << size/(time*1000) << "MB/s" << std::endl;
+        std::cout << "throughput:  " << size/(time) << "MB/s" << std::endl;
+        std::cout << "\033[01;37m" << std::endl;
     }
     catch (const std::string & exe) {
         std::cerr << "Failed with Message: " << exe << std::endl;
