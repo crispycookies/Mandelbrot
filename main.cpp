@@ -32,7 +32,7 @@ inline int iterate(int & i, complex_t & z, const complex_t & c) noexcept {
     return i;
 }
 // 28280ms
-std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::size_t count, float minx, float maxx, float miny, float maxy, std::size_t height, std::size_t width, std::size_t additional_threads = 0){
+std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::size_t count, complex<float> left, complex<float> right, complex<float> zoomPoint, const float factor, std::size_t height, std::size_t width, std::size_t additional_threads = 0){
     std::vector<std::shared_ptr<pfc::bitmap>> retval;
 
     //preallocating
@@ -50,9 +50,30 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
 
 
 
+
+    var minx = -2.74529004;
+    var miny = -1.01192498;
+    var maxx = 1.25470996;
+    var maxy = 1.23807502;
+
+
+
     auto calculation = pfc::timed_run([&]() {
         for(auto bmp : retval){
+
+
+            //minx = left.real();
+            //maxx = right.real();
+
+            //miny = left.imag();
+            //maxy = right.real();
+
+            minx -= (minx) * (1-0.95);
+            miny -= (miny) * (1-0.95);
+            maxx -= (maxx) * (1-0.95);
+            maxy -= (maxy) * (1-0.95);
             pfc::parallel_range<size_t>(additional_threads, height, [&](size_t t, size_t begin, size_t end) {
+
 
                 complex<float> c[16] = {0};
                 for (int y = begin; y < end; y++) {
@@ -65,37 +86,49 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
                         complex<float> z[16] =  {0};
                         int i[16] = {0};
 
-                        c[0] = {(float)((float) x / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
-                        c[1] = {(float)((float) (x + 1) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
-                        c[2] = {(float)((float) (x + 2) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
-                        c[3] = {(float)((float) (x + 3) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
+                        float x_start = maxx;
+                        float x_fin = minx;
+                        float y_start = maxy;
+                        float y_fin = miny;
 
-                        c[4] = {(float)((float) (x + 4) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
-                        c[5] = {(float)((float) (x + 5) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
-                        c[6] = {(float)((float) (x + 6) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
-                        c[7] = {(float)((float) (x + 7) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
-                        c[8] = {(float)((float) (x + 8) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
-                        c[9] = {(float)((float) (x + 9) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
+                        float dx = (x_fin - x_start)/(float)(bmp->width() - 1);
+                        float dy = (y_fin - y_start)/(float)(bmp->height() - 1);
 
-                        c[10] = {(float)((float) (x + 10) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
-                        c[11] = {(float)((float) (x + 11) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
-                        c[12] = {(float)((float) (x + 12) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
-                        c[13] = {(float)((float) (x + 13) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
-                        c[14] = {(float)((float) (x + 14) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
-                        c[15] = {(float)((float) (x + 15) / bmp->width() - 1.5), (float)((float) y / bmp->height() - 0.5)};
+                        c[0] = {x_start + ((float)x+0)*dx,y_fin - (float)y*dy};
+                        c[1] = {x_start + ((float)x+1)*dx,y_fin - (float)y*dy};
+                        c[2] = {x_start + ((float)x+2)*dx,y_fin - (float)y*dy};
+                        c[3] = {x_start + ((float)x+3)*dx,y_fin - (float)y*dy};
+
+                        c[4] = {x_start + ((float)x+4)*dx,y_fin - (float)y*dy};
+                        c[5] = {x_start + ((float)x+5)*dx,y_fin - (float)y*dy};
+                        c[6] = {x_start + ((float)x+6)*dx,y_fin - (float)y*dy};
+                        c[7] = {x_start + ((float)x+7)*dx,y_fin - (float)y*dy};
+
+                        c[8] = {x_start + ((float)x+8)*dx,y_fin - (float)y*dy};
+                        c[9] = {x_start + ((float)x+9)*dx,y_fin - (float)y*dy};
+                        c[10] = {x_start + ((float)x+10)*dx,y_fin - (float)y*dy};
+                        c[11] = {x_start + ((float)x+11)*dx,y_fin - (float)y*dy};
+
+                        c[12] = {x_start + ((float)x+12)*dx,y_fin - (float)y*dy};
+                        c[13] = {x_start + ((float)x+13)*dx,y_fin - (float)y*dy};
+                        c[14] = {x_start + ((float)x+14)*dx,y_fin - (float)y*dy};
+                        c[15] = {x_start + ((float)x+15)*dx,y_fin - (float)y*dy};
 
                         var r0 = pfc::byte_t(iterate(i[0],z[0],c[0]));
                         var r1 = pfc::byte_t(iterate(i[1],z[1],c[1]));
                         var r2 = pfc::byte_t(iterate(i[2],z[2],c[2]));
                         var r3 = pfc::byte_t(iterate(i[3],z[3],c[3]));
+
                         var r4 = pfc::byte_t(iterate(i[4],z[4],c[4]));
                         var r5 = pfc::byte_t(iterate(i[5],z[5],c[5]));
                         var r6 = pfc::byte_t(iterate(i[6],z[6],c[6]));
                         var r7 = pfc::byte_t(iterate(i[7],z[7],c[7]));
+
                         var r8 = pfc::byte_t(iterate(i[8],z[8],c[8]));
                         var r9 = pfc::byte_t(iterate(i[9],z[9],c[9]));
                         var r10 = pfc::byte_t(iterate(i[10],z[10],c[10]));
                         var r11 = pfc::byte_t(iterate(i[11],z[11],c[11]));
+
                         var r12 = pfc::byte_t(iterate(i[12],z[12],c[12]));
                         var r13 = pfc::byte_t(iterate(i[13],z[13],c[13]));
                         var r14 = pfc::byte_t(iterate(i[14],z[14],c[14]));
@@ -156,6 +189,8 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
                     }
                 }
             });
+            left -= (left-zoomPoint)*(1-factor);
+            right -= (right-zoomPoint)*(1*factor);
         }
     });
     std::cout << "CPU Calculation took " << std::chrono::duration_cast<std::chrono::milliseconds>(calculation).count() << "ms\n" << std::endl;
@@ -177,20 +212,24 @@ void store(const std::string prefix, std::vector<std::shared_ptr<pfc::bitmap>> s
 
 int main ()  {
 
+    var gZoomFactor = 0.95;
+
+    complex<float> zoomPoint = {0.745289981,0.113075003};
+
     try{
-        std::cout << "Warming Up CPU" << std::endl;
+        std::cout << "\033[22;32mWarming Up CPU" << std::endl;
         pfc::warm_up_cpu();
         std::cout << "Finished" << std::endl;
         std::cout << std::endl;
 
-        int count = 200;
+        int count = 2;
 
 
-        auto slides_2 = CalculateOnCPU(count/2,0,0,0,0,4608,8192,1000);
+        auto slides_2 = CalculateOnCPU(count/2,{-2.74529004, 1.01192498}, {1.25470996 , 1.23807502}, {-0.745289981 , 0.113075003},0.95,4608,8192,1000);
         //store("Mandel2", slides_2.first);
-        slides_2.first.clear();
-        auto slides_3 = CalculateOnCPU(count/2,0,0,0,0,4608,8192,1000);
-        //store("Mandel3", slides_3.first);
+        //slides_2.first.clear();
+        auto slides_3 = CalculateOnCPU(count/2,{-2.74529004, 1.01192498}, {1.25470996 , 1.23807502}, {-0.745289981 , 0.113075003},0.95,4608,8192,1000);
+        store("Mandel3", slides_3.first);
 
         if(slides_3.first.at(0) == nullptr){
             throw std::string("Cannot Calculate Statistical Data as at least one Element in Result Vector is invalid or empty");
