@@ -32,7 +32,7 @@ inline int iterate(int & i, complex_t & z, const complex_t & c) noexcept {
     return i;
 }
 // 28280ms
-std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::size_t count, complex<float> left, complex<float> right, complex<float> zoomPoint, const float factor, std::size_t height, std::size_t width, std::size_t additional_threads = 0){
+std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::size_t count, complex<float> & left, complex<float> & right, const complex<float> & zoomPoint, const float factor, std::size_t height, std::size_t width, std::size_t additional_threads = 0){
     std::vector<std::shared_ptr<pfc::bitmap>> retval;
 
     //preallocating
@@ -48,32 +48,20 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
     //calculating
     std::cout << "Calculating Picture(s)["+std::to_string(count)+"]" << std::endl;
 
-    var maxx = left.real();
-    var maxy = left.imag();
-    var minx = right.real();
-    var miny = right.imag();
-/*
-    var maxx = -2.74529004;
-    var maxy = -1.01192498;
-    var minx = 1.25470996;
-    var miny = 1.23807502;
-*/
+    var x_start = left.real();
+    var y_start = left.imag();
+    var x_fin = right.real();
+    var y_fin = right.imag();
+
 
 
     auto calculation = pfc::timed_run([&]() {
         for(auto bmp : retval){
 
-
-            //minx = left.real();
-            //maxx = right.real();
-
-            //miny = left.imag();
-            //maxy = right.real();
-
-            minx -= (minx - zoomPoint.real()) * (1-0.95);
-            miny -= (miny - zoomPoint.imag()) * (1-0.95);
-            maxx -= (maxx - zoomPoint.real()) * (1-0.95);
-            maxy -= (maxy - zoomPoint.imag()) * (1-0.95);
+            x_fin -= (x_fin - zoomPoint.real()) * (1-0.95);
+            y_fin -= (y_fin - zoomPoint.imag()) * (1-0.95);
+            x_start -= (x_start - zoomPoint.real()) * (1-0.95);
+            y_start -= (y_start - zoomPoint.imag()) * (1-0.95);
             pfc::parallel_range<size_t>(additional_threads, height, [&](size_t t, size_t begin, size_t end) {
 
 
@@ -87,11 +75,6 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
                     for (int x{0}; x < bmp->width(); x+=16) {
                         complex<float> z[16] =  {0};
                         int i[16] = {0};
-
-                        float x_start = maxx;
-                        float x_fin = minx;
-                        float y_start = maxy;
-                        float y_fin = miny;
 
                         float dx = (x_fin - x_start)/(float)(bmp->width() - 1);
                         float dy = (y_fin - y_start)/(float)(bmp->height() - 1);
@@ -196,14 +179,19 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
             */
         }
     });
+    //copy back
+    left = {x_start, y_start};
+    right = {x_fin, y_fin};
+
+
     std::cout << "CPU Calculation took " << std::chrono::duration_cast<std::chrono::milliseconds>(calculation).count() << "ms\n" << std::endl;
 
     return {retval, std::chrono::duration_cast<std::chrono::milliseconds>(calculation).count()};
 }
 
 
-void store(const std::string prefix, std::vector<std::shared_ptr<pfc::bitmap>> slides){
-    static int cnt = 0;
+void store(const std::string prefix, std::vector<std::shared_ptr<pfc::bitmap>> slides, int & cnt){
+    std::cout << "Storing Files... Pls Wait" << std::endl;
     for(const auto & c : slides){
         if(c == nullptr){
             throw std::string("Failure; Empty Picture");
@@ -211,6 +199,7 @@ void store(const std::string prefix, std::vector<std::shared_ptr<pfc::bitmap>> s
         c->to_file(prefix + std::to_string(cnt) + ".bmp");
         cnt++;
     }
+    std::cout << "Finished" << std::endl;
 }
 
 int main ()  {
@@ -223,12 +212,16 @@ int main ()  {
 
         int count = 200;
 
+        complex<float> left = {-2.74529004, -1.01192498};
+        complex<float> right = {1.25470996 , 1.23807502};
+        complex<float> zoomPoint = {-0.745289981 , 0.113075003};
+        int store_cnt = 0;
 
-        auto slides_2 = CalculateOnCPU(count/2,{-2.74529004, -1.01192498}, {1.25470996 , 1.23807502}, {-0.745289981 , 0.113075003},0.95,4608,8192,1000);
-        store("Mandel2", slides_2.first);
+        auto slides_2 = CalculateOnCPU(count/2,left, right, zoomPoint,0.95,4608,8192,1000);
+        store("Mandel_", slides_2.first, store_cnt);
         slides_2.first.clear();
-        auto slides_3 = CalculateOnCPU(count/2,{-2.74529004, -1.01192498}, {1.25470996 , 1.23807502}, {-0.745289981 , 0.113075003},0.95,4608,8192,1000);
-        store("Mandel3", slides_3.first);
+        auto slides_3 = CalculateOnCPU(count/2,left, right, zoomPoint,0.95,4608,8192,1000);
+        store("Mandel_", slides_3.first, store_cnt);
 
         if(slides_3.first.at(0) == nullptr){
             throw std::string("Cannot Calculate Statistical Data as at least one Element in Result Vector is invalid or empty");
