@@ -60,8 +60,10 @@ cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> & 
     x_start -= (x_start - zoomPoint.real()) * (1-factor);
     y_start -= (y_start - zoomPoint.imag()) * (1-factor);
 
-    printf("idx");
     iterate_GPU <<<((size+tib-1)/tib),tib >>> (gpu_ptr,  x_fin, x_start, y_fin, y_start, height, width);
+
+    left = {x_start, y_start};
+    right = {x_fin, y_fin};
 
     cudaDeviceSynchronize();
     return cudaGetLastError();

@@ -15,16 +15,8 @@ using namespace std;
 
 #define var auto
 
-/*int g_colors = 128;
-int g_infinity = {1225000000};
-*/
-template<typename complex_t>
-inline complex_t square(complex_t & z){
-    return z*z;
-}
 
-template<typename complex_t>
-inline int iterate(int & i, complex_t & z, const complex_t & c) noexcept {
+inline int iterate(int & i, complex<float> & z, const  complex<float> & c) noexcept {
     //auto i {0};
     //complex<double> z = 0;
     do{
@@ -55,11 +47,11 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
     var x_fin = right.real();
     var y_fin = right.imag();
 
-
+    int c = 0;
 
     auto calculation = pfc::timed_run([&]() {
         for(auto bmp : retval){
-
+            //std::cout << c++ << std::endl;
             x_fin -= (x_fin - zoomPoint.real()) * (1-factor);
             y_fin -= (y_fin - zoomPoint.imag()) * (1-factor);
             x_start -= (x_start - zoomPoint.real()) * (1-factor);
@@ -226,25 +218,9 @@ void allocate_memory(std::shared_ptr<pfc::bitmap> & cpu_source, std::shared_ptr<
 void free_memory(pfc::pixel_t *& gpu) {
     check(cudaFree(gpu)); gpu = nullptr;
 }
-void test_3 (pfc::bitmap & bmp) {
-    auto const height {bmp.height ()};
-    auto const width  {bmp.width ()};
 
-    auto & span {bmp.pixel_span ()};
 
-    auto * const p_buffer {std::data (span)};   // get pointer to first pixel in pixel buffer
-    auto const   size     {std::size (span)};   // get size of pixel buffer
-
-    for (int y {0}; y < height; ++y) {
-        for (int x {0}; x < width; ++x) {
-            p_buffer[y * width + x] = {
-                    pfc::byte_t (255 * y / height), 123, 64
-            };
-        }
-    }
-}
-
-int checked_main(complex<float> & left, complex<float> & right, const complex<float> & zoomPoint, int height, int width, float factor, int count){
+int checked_main(complex<float> & left, complex<float> & right, const complex<float> & zoomPoint, int height, int width, float factor, int count, const std::string & prefix){
     std::shared_ptr<pfc::bitmap> cpu_source = nullptr;
     std::shared_ptr<pfc::bitmap> cpu_destination= nullptr;
     pfc::pixel_t * gpu = nullptr;
@@ -265,83 +241,98 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     var & span_dest {cpu_destination->pixel_span ()};
     pfc::pixel_t * p_buffer_dest {std::data (span_dest)};
 
-    
-    copy_to_gpu(p_buffer, gpu,cpu_source->size());
-    check(call_iteration_kernel(gpu,left,right,zoomPoint, height, width,factor));
-    copy_to_cpu(p_buffer_dest, gpu,cpu_source->size());
-    cpu_destination->to_file("test.bmp");
+    //copy_to_gpu(p_buffer, gpu,cpu_source->size());
+    int time = 0;
+
+    for(int i = 0; i < count;i++){
+        auto timed_run = pfc::timed_run([&]() {
+            check(call_iteration_kernel(gpu,left,right,zoomPoint, height, width,factor));
+            copy_to_cpu(p_buffer_dest, gpu,cpu_source->size());
+        });
+        time += std::chrono::duration_cast<std::chrono::milliseconds>(timed_run).count();
+        cpu_destination->to_file(prefix+ std::to_string(i)+".bmp");
+    }
 
     free_memory(gpu);
     check(cudaDeviceReset());
+
+    std::cout << "GPU Calculation took " << time << "ms\n" << std::endl;
+
+    return time;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 int main ()  {
-    complex<float> left = {-2.74529004, -1.01192498};
-    complex<float> right = {1.25470996 , 1.23807502};
-    complex<float> zoomPoint = {-0.745289981 , 0.113075003};
-    checked_main(left, right, zoomPoint, 4608,8192,0.95);/*
-    try{
-        std::cout << "\033[22;32mWarming Up CPU" << std::endl;
-        pfc::warm_up_cpu();
-        std::cout << "Finished" << std::endl;
-        std::cout << std::endl;
 
-        int count = 2;
+    try{
+        //General
+        int count = 200;
+        int store_cnt = 0;
 
         complex<float> left = {-2.74529004, -1.01192498};
         complex<float> right = {1.25470996 , 1.23807502};
         complex<float> zoomPoint = {-0.745289981 , 0.113075003};
-        int store_cnt = 0;
 
-        auto slides_2 = CalculateOnCPU(count/2,left, right, zoomPoint,0.95,4608,8192,1000);
-        store("Mandel_", slides_2.first, store_cnt);
-        slides_2.first.clear();
-        auto slides_3 = CalculateOnCPU(count/2,left, right, zoomPoint,0.95,4608,8192,1000);
-        store("Mandel_", slides_3.first, store_cnt);
+        std::cout << "Warming Up CPU" << std::endl;
+        pfc::warm_up_cpu();
+        std::cout << "Finished" << std::endl;
+        std::cout << std::endl;
 
-        if(slides_3.first.at(0) == nullptr){
+        //GPU
+        std::cout << "\033[22;32mGPU Calculation" << std::endl;
+        int time_gpu = checked_main(left, right, zoomPoint, 4608,8192,0.95,count, "Mandel_GPU_");
+        std::cout << "Finished" << std::endl;
+
+        left = {-2.74529004, -1.01192498};
+        right = {1.25470996 , 1.23807502};
+        zoomPoint = {-0.745289981 , 0.113075003};
+
+        std::cout << "Warming Up CPU" << std::endl;
+        pfc::warm_up_cpu();
+        std::cout << "Finished" << std::endl;
+        std::cout << std::endl;
+
+        std::cout << "\033[22;31mCPU Calculation" << std::endl;
+        auto slides_0_100 = CalculateOnCPU(count/2,left, right, zoomPoint,0.95,4608,8192,1000);
+        store("Mandel_CPU_", slides_0_100.first, store_cnt);
+        slides_0_100.first.clear();
+        auto slides_100_200 = CalculateOnCPU(count/2,left, right, zoomPoint,0.95,4608,8192,1000);
+        store("Mandel_CPU_", slides_100_200.first, store_cnt);
+        std::cout << "Finished" << std::endl;
+
+        if(slides_100_200.first.at(0) == nullptr){
             throw std::string("Cannot Calculate Statistical Data as at least one Element in Result Vector is invalid or empty");
         }
 
-        var size = slides_3.first.at(0)->size() * sizeof(pfc::BGR_4_t) * count/1000000;
-        var time = slides_3.second + slides_3.second;
+        var size = slides_100_200.first.at(0)->size() * sizeof(pfc::BGR_4_t) * count/1000000;
+        var time_cpu = slides_100_200.second + slides_0_100.second;
 
-        if(time == 0){
+        if(time_cpu == 0 /*|| time_gpu == 0*/){
             throw std::string("Invalid Time measured");
         }
 
-        slides_3.first.clear();
+        slides_100_200.first.clear();
+
+        std::cout << "\033[01;37m" << std::endl;
 
         std::cout << "CPU:         " << "R7 3700x @ 4.3 GHz" << std::endl;
-        std::cout << "Runtime:     " << time << "ms (for " << std::to_string(count) << " Bitmaps and " << std::to_string(size) << "MB of Data)" << std::endl;
-        std::cout << "throughput:  " << size/((float)time/1000) << "MB/s" << std::endl;
-        std::cout << "\033[01;37m" << std::endl;
+        std::cout << "Runtime:     " << time_cpu << "ms (for " << std::to_string(count) << " Bitmaps and " << std::to_string(size) << "MB of Data)" << std::endl;
+        std::cout << "throughput:  " << size/((float)time_cpu/1000) << "MB/s" << std::endl;
+        std::cout << std::endl;
+
+        cudaDeviceProp prop{}; check(cudaGetDeviceProperties(&prop, 0));
+
+        std::cout << "GPU:         " << prop.name << std::endl;
+        std::cout << "Runtime:     " << time_gpu << "ms (for " << std::to_string(count) << " Bitmaps and " << std::to_string(size) << "MB of Data)" << std::endl;
+        std::cout << "throughput:  " << size/((float)time_gpu/1000) << "MB/s" << std::endl;
+        std::cout << std::endl;
+
+        std::cout << "Speedup(%):  " << time_cpu*100/time_gpu << std::endl;
+        std::cout << std::endl;
+
     }
     catch (const std::string & exe) {
         std::cerr << "Failed with Message: " << exe << std::endl;
     }
-*/
 }
 
 
