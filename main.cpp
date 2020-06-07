@@ -13,9 +13,6 @@
 
 using namespace std;
 
-#define var auto
-
-
 inline int iterate(int & i, complex<float> & z, const  complex<float> & c) noexcept {
     //auto i {0};
     //complex<double> z = 0;
@@ -26,7 +23,7 @@ inline int iterate(int & i, complex<float> & z, const  complex<float> & c) noexc
     return i;
 }
 // 28280ms
-std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::size_t count, complex<float> & left, complex<float> & right, const complex<float> & zoomPoint, const float factor, std::size_t height, std::size_t width, std::size_t additional_threads = 0){
+std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::size_t count, complex<float> & left, complex<float> & right, const complex<float> & zPoint, const float factor, std::size_t height, std::size_t width, std::size_t additional_threads = 0){
     std::vector<std::shared_ptr<pfc::bitmap>> retval;
 
     //preallocating
@@ -42,20 +39,20 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
     //calculating
     std::cout << "Calculating Picture(s)["+std::to_string(count)+"]" << std::endl;
 
-    var x_start = left.real();
-    var y_start = left.imag();
-    var x_fin = right.real();
-    var y_fin = right.imag();
+    auto xleft = left.real();
+    auto yleft = left.imag();
+    auto xright = right.real();
+    auto yright = right.imag();
 
     int c = 0;
 
     auto calculation = pfc::timed_run([&]() {
         for(auto bmp : retval){
             //std::cout << c++ << std::endl;
-            x_fin -= (x_fin - zoomPoint.real()) * (1-factor);
-            y_fin -= (y_fin - zoomPoint.imag()) * (1-factor);
-            x_start -= (x_start - zoomPoint.real()) * (1-factor);
-            y_start -= (y_start - zoomPoint.imag()) * (1-factor);
+            xright -= (xright - zPoint.real()) * (1-factor);
+            yright -= (yright - zPoint.imag()) * (1-factor);
+            xleft -= (xleft - zPoint.real()) * (1-factor);
+            yleft -= (yleft - zPoint.imag()) * (1-factor);
             pfc::parallel_range<size_t>(additional_threads, height, [&](size_t t, size_t begin, size_t end) {
 
 
@@ -70,48 +67,48 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
                         complex<float> z[16] =  {0};
                         int i[16] = {0};
 
-                        float dx = (x_fin - x_start)/(float)(bmp->width() - 1);
-                        float dy = (y_fin - y_start)/(float)(bmp->height() - 1);
+                        float dx = (xright - xleft)/(float)(bmp->width() - 1);
+                        float dy = (yright - yleft)/(float)(bmp->height() - 1);
 
-                        c[0] = {x_start + ((float)x+0)*dx,y_fin - (float)y*dy};
-                        c[1] = {x_start + ((float)x+1)*dx,y_fin - (float)y*dy};
-                        c[2] = {x_start + ((float)x+2)*dx,y_fin - (float)y*dy};
-                        c[3] = {x_start + ((float)x+3)*dx,y_fin - (float)y*dy};
+                        c[0] = {xleft + ((float)x+0)*dx,yright - (float)y*dy};
+                        c[1] = {xleft + ((float)x+1)*dx,yright - (float)y*dy};
+                        c[2] = {xleft + ((float)x+2)*dx,yright - (float)y*dy};
+                        c[3] = {xleft + ((float)x+3)*dx,yright - (float)y*dy};
 
-                        c[4] = {x_start + ((float)x+4)*dx,y_fin - (float)y*dy};
-                        c[5] = {x_start + ((float)x+5)*dx,y_fin - (float)y*dy};
-                        c[6] = {x_start + ((float)x+6)*dx,y_fin - (float)y*dy};
-                        c[7] = {x_start + ((float)x+7)*dx,y_fin - (float)y*dy};
+                        c[4] = {xleft + ((float)x+4)*dx,yright - (float)y*dy};
+                        c[5] = {xleft + ((float)x+5)*dx,yright - (float)y*dy};
+                        c[6] = {xleft + ((float)x+6)*dx,yright - (float)y*dy};
+                        c[7] = {xleft + ((float)x+7)*dx,yright - (float)y*dy};
 
-                        c[8] = {x_start + ((float)x+8)*dx,y_fin - (float)y*dy};
-                        c[9] = {x_start + ((float)x+9)*dx,y_fin - (float)y*dy};
-                        c[10] = {x_start + ((float)x+10)*dx,y_fin - (float)y*dy};
-                        c[11] = {x_start + ((float)x+11)*dx,y_fin - (float)y*dy};
+                        c[8] = {xleft + ((float)x+8)*dx,yright - (float)y*dy};
+                        c[9] = {xleft + ((float)x+9)*dx,yright - (float)y*dy};
+                        c[10] = {xleft + ((float)x+10)*dx,yright - (float)y*dy};
+                        c[11] = {xleft + ((float)x+11)*dx,yright - (float)y*dy};
 
-                        c[12] = {x_start + ((float)x+12)*dx,y_fin - (float)y*dy};
-                        c[13] = {x_start + ((float)x+13)*dx,y_fin - (float)y*dy};
-                        c[14] = {x_start + ((float)x+14)*dx,y_fin - (float)y*dy};
-                        c[15] = {x_start + ((float)x+15)*dx,y_fin - (float)y*dy};
+                        c[12] = {xleft + ((float)x+12)*dx,yright - (float)y*dy};
+                        c[13] = {xleft + ((float)x+13)*dx,yright - (float)y*dy};
+                        c[14] = {xleft + ((float)x+14)*dx,yright - (float)y*dy};
+                        c[15] = {xleft + ((float)x+15)*dx,yright - (float)y*dy};
 
-                        var r0 = pfc::byte_t(iterate(i[0],z[0],c[0]));
-                        var r1 = pfc::byte_t(iterate(i[1],z[1],c[1]));
-                        var r2 = pfc::byte_t(iterate(i[2],z[2],c[2]));
-                        var r3 = pfc::byte_t(iterate(i[3],z[3],c[3]));
+                        auto r0 = pfc::byte_t(iterate(i[0],z[0],c[0]));
+                        auto r1 = pfc::byte_t(iterate(i[1],z[1],c[1]));
+                        auto r2 = pfc::byte_t(iterate(i[2],z[2],c[2]));
+                        auto r3 = pfc::byte_t(iterate(i[3],z[3],c[3]));
 
-                        var r4 = pfc::byte_t(iterate(i[4],z[4],c[4]));
-                        var r5 = pfc::byte_t(iterate(i[5],z[5],c[5]));
-                        var r6 = pfc::byte_t(iterate(i[6],z[6],c[6]));
-                        var r7 = pfc::byte_t(iterate(i[7],z[7],c[7]));
+                        auto r4 = pfc::byte_t(iterate(i[4],z[4],c[4]));
+                        auto r5 = pfc::byte_t(iterate(i[5],z[5],c[5]));
+                        auto r6 = pfc::byte_t(iterate(i[6],z[6],c[6]));
+                        auto r7 = pfc::byte_t(iterate(i[7],z[7],c[7]));
 
-                        var r8 = pfc::byte_t(iterate(i[8],z[8],c[8]));
-                        var r9 = pfc::byte_t(iterate(i[9],z[9],c[9]));
-                        var r10 = pfc::byte_t(iterate(i[10],z[10],c[10]));
-                        var r11 = pfc::byte_t(iterate(i[11],z[11],c[11]));
+                        auto r8 = pfc::byte_t(iterate(i[8],z[8],c[8]));
+                        auto r9 = pfc::byte_t(iterate(i[9],z[9],c[9]));
+                        auto r10 = pfc::byte_t(iterate(i[10],z[10],c[10]));
+                        auto r11 = pfc::byte_t(iterate(i[11],z[11],c[11]));
 
-                        var r12 = pfc::byte_t(iterate(i[12],z[12],c[12]));
-                        var r13 = pfc::byte_t(iterate(i[13],z[13],c[13]));
-                        var r14 = pfc::byte_t(iterate(i[14],z[14],c[14]));
-                        var r15 = pfc::byte_t(iterate(i[15],z[15],c[15]));
+                        auto r12 = pfc::byte_t(iterate(i[12],z[12],c[12]));
+                        auto r13 = pfc::byte_t(iterate(i[13],z[13],c[13]));
+                        auto r14 = pfc::byte_t(iterate(i[14],z[14],c[14]));
+                        auto r15 = pfc::byte_t(iterate(i[15],z[15],c[15]));
 
                         p_buffer[y * width + x] = {
                                 r0, 0, 0
@@ -167,14 +164,14 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
                     }
                 }
             });/*
-            left -= (left-zoomPoint)*(1-factor);
-            right -= (right-zoomPoint)*(1*factor);
+            left -= (left-zPoint)*(1-factor);
+            right -= (right-zPoint)*(1*factor);
             */
         }
     });
     //copy back
-    left = {x_start, y_start};
-    right = {x_fin, y_fin};
+    left = {xleft, yleft};
+    right = {xright, yright};
 
 
     std::cout << "CPU Calculation took " << std::chrono::duration_cast<std::chrono::milliseconds>(calculation).count() << "ms\n" << std::endl;
@@ -220,7 +217,7 @@ void free_memory(pfc::pixel_t *& gpu) {
 }
 
 
-int checked_main(complex<float> & left, complex<float> & right, const complex<float> & zoomPoint, int height, int width, float factor, int count, const std::string & prefix){
+int checked_main(complex<float> & left, complex<float> & right, const complex<float> & zPoint, int height, int width, float factor, int count, const std::string & prefix){
     std::shared_ptr<pfc::bitmap> cpu_source = nullptr;
     std::shared_ptr<pfc::bitmap> cpu_destination= nullptr;
     pfc::pixel_t * gpu = nullptr;
@@ -235,10 +232,10 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     cudaDeviceSynchronize();
     allocate_memory(cpu_source,cpu_destination,gpu,width,height);
 
-    var & span {cpu_source->pixel_span ()};
+    auto & span {cpu_source->pixel_span ()};
     pfc::pixel_t * p_buffer {std::data (span)};
 
-    var & span_dest {cpu_destination->pixel_span ()};
+    auto & span_dest {cpu_destination->pixel_span ()};
     pfc::pixel_t * p_buffer_dest {std::data (span_dest)};
 
     //copy_to_gpu(p_buffer, gpu,cpu_source->size());
@@ -246,7 +243,7 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
 
     for(int i = 0; i < count;i++){
         auto timed_run = pfc::timed_run([&]() {
-            check(call_iteration_kernel(gpu,left,right,zoomPoint, height, width,factor));
+            check(call_iteration_kernel(gpu,left,right,zPoint, height, width,factor));
             copy_to_cpu(p_buffer_dest, gpu,cpu_source->size());
         });
         time += std::chrono::duration_cast<std::chrono::milliseconds>(timed_run).count();
@@ -270,7 +267,7 @@ int main ()  {
 
         complex<float> left = {-2.74529004, -1.01192498};
         complex<float> right = {1.25470996 , 1.23807502};
-        complex<float> zoomPoint = {-0.745289981 , 0.113075003};
+        complex<float> zPoint = {-0.745289981 , 0.113075003};
 
         std::cout << "Warming Up CPU" << std::endl;
         pfc::warm_up_cpu();
@@ -279,12 +276,12 @@ int main ()  {
 
         //GPU
         std::cout << "\033[22;32mGPU Calculation" << std::endl;
-        int time_gpu = checked_main(left, right, zoomPoint, 4608,8192,0.95,count, "Mandel_GPU_");
+        int time_gpu = checked_main(left, right, zPoint, 4608,8192,0.95,count, "Mandel_GPU_");
         std::cout << "Finished" << std::endl;
 
         left = {-2.74529004, -1.01192498};
         right = {1.25470996 , 1.23807502};
-        zoomPoint = {-0.745289981 , 0.113075003};
+        zPoint = {-0.745289981 , 0.113075003};
 
         std::cout << "Warming Up CPU" << std::endl;
         pfc::warm_up_cpu();
@@ -292,10 +289,10 @@ int main ()  {
         std::cout << std::endl;
 
         std::cout << "\033[22;31mCPU Calculation" << std::endl;
-        auto slides_0_100 = CalculateOnCPU(count/2,left, right, zoomPoint,0.95,4608,8192,1000);
+        auto slides_0_100 = CalculateOnCPU(count/2,left, right, zPoint,0.95,4608,8192,1000);
         store("Mandel_CPU_", slides_0_100.first, store_cnt);
         slides_0_100.first.clear();
-        auto slides_100_200 = CalculateOnCPU(count/2,left, right, zoomPoint,0.95,4608,8192,1000);
+        auto slides_100_200 = CalculateOnCPU(count/2,left, right, zPoint,0.95,4608,8192,1000);
         store("Mandel_CPU_", slides_100_200.first, store_cnt);
         std::cout << "Finished" << std::endl;
 
@@ -303,8 +300,8 @@ int main ()  {
             throw std::string("Cannot Calculate Statistical Data as at least one Element in Result Vector is invalid or empty");
         }
 
-        var size = slides_100_200.first.at(0)->size() * sizeof(pfc::BGR_4_t) * count/1000000;
-        var time_cpu = slides_100_200.second + slides_0_100.second;
+        auto size = slides_100_200.first.at(0)->size() * sizeof(pfc::BGR_4_t) * count/1000000;
+        auto time_cpu = slides_100_200.second + slides_0_100.second;
 
         if(time_cpu == 0 /*|| time_gpu == 0*/){
             throw std::string("Invalid Time measured");
@@ -334,5 +331,3 @@ int main ()  {
         std::cerr << "Failed with Message: " << exe << std::endl;
     }
 }
-
-

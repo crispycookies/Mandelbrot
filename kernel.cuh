@@ -12,6 +12,6 @@ __constant__ int const g_infinity = {1225000000};
 
 __host__ __device__
 int iterate(const std::complex<float> & c) noexcept;
-cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> & left, std::complex<float>  & right, const std::complex<float>  & zoomPoint,  int height, int width, float factor);
+cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> & left, std::complex<float>  & right, const std::complex<float>  & zPoint,  int height, int width, float factor);
 
 #endif

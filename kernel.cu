@@ -25,18 +25,18 @@ int iterate(const cuFloatComplex & c) noexcept {
 }
 
 
-__global__ void iterate_GPU(pfc::pixel_t * gpu_ptr, float x_fin, float x_start, float y_fin, float y_start, int height, int width) {
+__global__ void iterate_GPU(pfc::pixel_t * gpu_ptr, float xright, float xleft, float yright, float yleft, int height, int width) {
     size_t const current_idx = global_thread_idx_x();
 
-    float dx = (x_fin - x_start)/(float)(width - 1);
-    float dy = (y_fin - y_start)/(float)(height - 1);
+    float dx = (xright - xleft)/(float)(width - 1);
+    float dy = (yright - yleft)/(float)(height - 1);
 
     int x = (int)current_idx % width;
     int y = (int)current_idx / width;
 
     cuComplex c;
-    c.x = {x_start + ((float)x)*dx};
-    c.y = {y_fin - (float)y*dy};
+    c.x = {xleft + ((float)x)*dx};
+    c.y = {yright - (float)y*dy};
 
     if (current_idx < height * width) {
         gpu_ptr[current_idx] = {pfc::byte_t(iterate(c)),0,0};
@@ -44,26 +44,26 @@ __global__ void iterate_GPU(pfc::pixel_t * gpu_ptr, float x_fin, float x_start, 
 }
 
 
-cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> & left, std::complex<float>  & right, const std::complex<float>  & zoomPoint, int height, int width, float factor){
+cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> & left, std::complex<float>  & right, const std::complex<float>  & zPoint, int height, int width, float factor){
 
     auto const size{ static_cast <int> (height*width) };
 
     auto const  tib = 512;
 
-    auto x_start = left.real();
-    auto y_start = left.imag();
-    auto x_fin = right.real();
-    auto y_fin = right.imag();
+    auto xleft = left.real();
+    auto yleft = left.imag();
+    auto xright = right.real();
+    auto yright = right.imag();
 
-    x_fin -= (x_fin - zoomPoint.real()) * (1-factor);
-    y_fin -= (y_fin - zoomPoint.imag()) * (1-factor);
-    x_start -= (x_start - zoomPoint.real()) * (1-factor);
-    y_start -= (y_start - zoomPoint.imag()) * (1-factor);
+    xright -= (xright - zPoint.real()) * (1-factor);
+    yright -= (yright - zPoint.imag()) * (1-factor);
+    xleft -= (xleft - zPoint.real()) * (1-factor);
+    yleft -= (yleft - zPoint.imag()) * (1-factor);
 
-    iterate_GPU <<<((size+tib-1)/tib),tib >>> (gpu_ptr,  x_fin, x_start, y_fin, y_start, height, width);
+    iterate_GPU <<<((size+tib-1)/tib),tib >>> (gpu_ptr,  xright, xleft, yright, yleft, height, width);
 
-    left = {x_start, y_start};
-    right = {x_fin, y_fin};
+    left = {xleft, yleft};
+    right = {xright, yright};
 
     cudaDeviceSynchronize();
     return cudaGetLastError();
