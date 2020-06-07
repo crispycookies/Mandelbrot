@@ -9,13 +9,15 @@
 #include "misc/pfc_timing.h"
 #include "misc/pfc_threading.h"
 
+#include "kernel.cuh"
+
 using namespace std;
 
 #define var auto
 
-int g_colors = 128;
+/*int g_colors = 128;
 int g_infinity = {1225000000};
-
+*/
 template<typename complex_t>
 inline complex_t square(complex_t & z){
     return z*z;
@@ -58,10 +60,10 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
     auto calculation = pfc::timed_run([&]() {
         for(auto bmp : retval){
 
-            x_fin -= (x_fin - zoomPoint.real()) * (1-0.95);
-            y_fin -= (y_fin - zoomPoint.imag()) * (1-0.95);
-            x_start -= (x_start - zoomPoint.real()) * (1-0.95);
-            y_start -= (y_start - zoomPoint.imag()) * (1-0.95);
+            x_fin -= (x_fin - zoomPoint.real()) * (1-factor);
+            y_fin -= (y_fin - zoomPoint.imag()) * (1-factor);
+            x_start -= (x_start - zoomPoint.real()) * (1-factor);
+            y_start -= (y_start - zoomPoint.imag()) * (1-factor);
             pfc::parallel_range<size_t>(additional_threads, height, [&](size_t t, size_t begin, size_t end) {
 
 
@@ -118,7 +120,6 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
                         var r13 = pfc::byte_t(iterate(i[13],z[13],c[13]));
                         var r14 = pfc::byte_t(iterate(i[14],z[14],c[14]));
                         var r15 = pfc::byte_t(iterate(i[15],z[15],c[15]));
-
 
                         p_buffer[y * width + x] = {
                                 r0, 0, 0
@@ -202,15 +203,111 @@ void store(const std::string prefix, std::vector<std::shared_ptr<pfc::bitmap>> s
     std::cout << "Finished" << std::endl;
 }
 
-int main ()  {
+void check(cudaError_t const e) {
+    if (e != cudaSuccess) {
+        throw std::runtime_error{ cudaGetErrorName(e) };
+    }
+}
 
+void copy_to_gpu(pfc::pixel_t *& cpu, pfc::pixel_t *& gpu, int size) {
+    check(cudaMemcpy(gpu, cpu,size * sizeof(pfc::pixel_t), cudaMemcpyHostToDevice));
+}
+
+void copy_to_cpu(pfc::pixel_t *& cpu, pfc::pixel_t *& gpu, int size) {
+    check(cudaMemcpy(cpu, gpu, size * sizeof(pfc::pixel_t), cudaMemcpyDeviceToHost));
+}
+void allocate_memory(std::shared_ptr<pfc::bitmap> & cpu_source, std::shared_ptr<pfc::bitmap> & cpu_destination, pfc::pixel_t *& gpu, int width, int height) {
+    cpu_source = std::make_shared<pfc::bitmap>(width, height);
+    cpu_destination = std::make_shared<pfc::bitmap>(width, height);
+
+    //GPU Malloc
+    check(cudaMalloc(&gpu, cpu_source->size()*sizeof(pfc::pixel_t)));
+}
+void free_memory(pfc::pixel_t *& gpu) {
+    check(cudaFree(gpu)); gpu = nullptr;
+}
+void test_3 (pfc::bitmap & bmp) {
+    auto const height {bmp.height ()};
+    auto const width  {bmp.width ()};
+
+    auto & span {bmp.pixel_span ()};
+
+    auto * const p_buffer {std::data (span)};   // get pointer to first pixel in pixel buffer
+    auto const   size     {std::size (span)};   // get size of pixel buffer
+
+    for (int y {0}; y < height; ++y) {
+        for (int x {0}; x < width; ++x) {
+            p_buffer[y * width + x] = {
+                    pfc::byte_t (255 * y / height), 123, 64
+            };
+        }
+    }
+}
+
+int checked_main(complex<float> & left, complex<float> & right, const complex<float> & zoomPoint, int height, int width, float factor, int count){
+    std::shared_ptr<pfc::bitmap> cpu_source = nullptr;
+    std::shared_ptr<pfc::bitmap> cpu_destination= nullptr;
+    pfc::pixel_t * gpu = nullptr;
+
+    check(cudaSetDevice(0));
+    cudaDeviceProp prop{}; check(cudaGetDeviceProperties(&prop, 0));
+
+    std::cout << "Device:\t" <<prop.name << '\n';
+    std::cout << "Compute Capability:\t" << prop.major << '.' << prop.minor << '\n';
+    std::cout << "-----------------------------------" << std::endl;
+
+    cudaDeviceSynchronize();
+    allocate_memory(cpu_source,cpu_destination,gpu,width,height);
+
+    var & span {cpu_source->pixel_span ()};
+    pfc::pixel_t * p_buffer {std::data (span)};
+
+    var & span_dest {cpu_destination->pixel_span ()};
+    pfc::pixel_t * p_buffer_dest {std::data (span_dest)};
+
+    
+    copy_to_gpu(p_buffer, gpu,cpu_source->size());
+    check(call_iteration_kernel(gpu,left,right,zoomPoint, height, width,factor));
+    copy_to_cpu(p_buffer_dest, gpu,cpu_source->size());
+    cpu_destination->to_file("test.bmp");
+
+    free_memory(gpu);
+    check(cudaDeviceReset());
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+int main ()  {
+    complex<float> left = {-2.74529004, -1.01192498};
+    complex<float> right = {1.25470996 , 1.23807502};
+    complex<float> zoomPoint = {-0.745289981 , 0.113075003};
+    checked_main(left, right, zoomPoint, 4608,8192,0.95);/*
     try{
         std::cout << "\033[22;32mWarming Up CPU" << std::endl;
         pfc::warm_up_cpu();
         std::cout << "Finished" << std::endl;
         std::cout << std::endl;
 
-        int count = 200;
+        int count = 2;
 
         complex<float> left = {-2.74529004, -1.01192498};
         complex<float> right = {1.25470996 , 1.23807502};
@@ -227,7 +324,7 @@ int main ()  {
             throw std::string("Cannot Calculate Statistical Data as at least one Element in Result Vector is invalid or empty");
         }
 
-        var size = slides_3.first.at(0)->size() * sizeof(pfc::BGR_4_t) * count/1000;
+        var size = slides_3.first.at(0)->size() * sizeof(pfc::BGR_4_t) * count/1000000;
         var time = slides_3.second + slides_3.second;
 
         if(time == 0){
@@ -238,13 +335,13 @@ int main ()  {
 
         std::cout << "CPU:         " << "R7 3700x @ 4.3 GHz" << std::endl;
         std::cout << "Runtime:     " << time << "ms (for " << std::to_string(count) << " Bitmaps and " << std::to_string(size) << "MB of Data)" << std::endl;
-        std::cout << "throughput:  " << size/(time) << "MB/s" << std::endl;
+        std::cout << "throughput:  " << size/((float)time/1000) << "MB/s" << std::endl;
         std::cout << "\033[01;37m" << std::endl;
     }
     catch (const std::string & exe) {
         std::cerr << "Failed with Message: " << exe << std::endl;
     }
-
+*/
 }
 
 
