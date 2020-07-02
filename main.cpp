@@ -217,7 +217,7 @@ void free_memory(pfc::pixel_t *& gpu) {
 }
 
 
-int checked_main(complex<float> & left, complex<float> & right, const complex<float> & zPoint, int height, int width, float factor, int count, const std::string & prefix, const bool save = true){
+int checked_main(complex<float> & left, complex<float> & right, const complex<float> & zPoint, int height, int width, float factor, int count, const std::string & prefix, const bool save = true, const std::size_t parallel_count = 25){
     std::shared_ptr<pfc::bitmap> cpu_source = nullptr;
     std::shared_ptr<pfc::bitmap> cpu_destination= nullptr;
     pfc::pixel_t * gpu = nullptr;
@@ -240,7 +240,7 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     for(int i = 0; i < count;i++){
         auto timed_run = pfc::timed_run([&]() {
             check(call_iteration_kernel(gpu,left,right,zPoint, height, width,factor));
-            copy_to_cpu(p_buffer_dest, gpu,cpu_source->size());
+            copy_to_cpu(p_buffer_dest, gpu,cpu_destination->size());
         });
         time += std::chrono::duration_cast<std::chrono::milliseconds>(timed_run).count();
         if(save) {
