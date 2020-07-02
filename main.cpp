@@ -27,7 +27,7 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
     std::vector<std::shared_ptr<pfc::bitmap>> retval;
 
     //preallocating
-    std::cout << "Pre-Alloc Buffer for Pictures" << std::endl;
+    std::cout << "\033[22;31mPre-Alloc Buffer for Pictures" << std::endl;
     auto pre_alloc = pfc::timed_run([&]() {
         for(int i = 0; i < count; i++){
             retval.emplace_back(std::make_shared<pfc::bitmap>(width, height));
@@ -181,7 +181,7 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
 
 
 void store(const std::string prefix, std::vector<std::shared_ptr<pfc::bitmap>> slides, int & cnt){
-    std::cout << "Storing Files... Pls Wait" << std::endl;
+    std::cout << "\033[01;37mStoring Files... Pls Wait" << std::endl;
     for(const auto & c : slides){
         if(c == nullptr){
             throw std::string("Failure; Empty Picture");
@@ -189,7 +189,7 @@ void store(const std::string prefix, std::vector<std::shared_ptr<pfc::bitmap>> s
         c->to_file(prefix + std::to_string(cnt) + ".bmp");
         cnt++;
     }
-    std::cout << "Finished" << std::endl;
+    std::cout << "Finished" << std::endl << std::endl;
 }
 
 void check(cudaError_t const e) {
@@ -217,7 +217,7 @@ void free_memory(pfc::pixel_t *& gpu) {
 }
 
 
-int checked_main(complex<float> & left, complex<float> & right, const complex<float> & zPoint, int height, int width, float factor, int count, const std::string & prefix){
+int checked_main(complex<float> & left, complex<float> & right, const complex<float> & zPoint, int height, int width, float factor, int count, const std::string & prefix, const bool save = true){
     std::shared_ptr<pfc::bitmap> cpu_source = nullptr;
     std::shared_ptr<pfc::bitmap> cpu_destination= nullptr;
     pfc::pixel_t * gpu = nullptr;
@@ -232,13 +232,9 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     cudaDeviceSynchronize();
     allocate_memory(cpu_source,cpu_destination,gpu,width,height);
 
-    auto & span {cpu_source->pixel_span ()};
-    pfc::pixel_t * p_buffer {std::data (span)};
-
     auto & span_dest {cpu_destination->pixel_span ()};
     pfc::pixel_t * p_buffer_dest {std::data (span_dest)};
 
-    //copy_to_gpu(p_buffer, gpu,cpu_source->size());
     int time = 0;
 
     for(int i = 0; i < count;i++){
@@ -247,7 +243,9 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
             copy_to_cpu(p_buffer_dest, gpu,cpu_source->size());
         });
         time += std::chrono::duration_cast<std::chrono::milliseconds>(timed_run).count();
-        //cpu_destination->to_file(prefix+ std::to_string(i)+".bmp");
+        if(save) {
+            cpu_destination->to_file(prefix + std::to_string(i) + ".bmp");
+        }
     }
 
     free_memory(gpu);
@@ -259,7 +257,7 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
 }
 
 void warm_up(){
-    std::cout << "\033[22;30mWarming Up CPU" << std::endl;
+    std::cout << "\033[01;37mWarming Up CPU" << std::endl;
     pfc::warm_up_cpu();
     std::cout << "Finished" << std::endl;
     std::cout << std::endl;
@@ -297,6 +295,7 @@ int main ()  {
         //General
         int count = 200;
         int store_cnt = 0;
+        bool save = true;
 
         int height = 4608;
         int width = 8192;
@@ -309,7 +308,7 @@ int main ()  {
 
         //GPU
         std::cout << "\033[22;32mGPU Calculation" << std::endl;
-        int time_gpu = checked_main(left, right, zPoint, height,width,0.95,count, "Mandel_GPU_");
+        int time_gpu = checked_main(left, right, zPoint, height,width,0.95,count, "Mandel_GPU_",save);
         std::cout << "Finished" << std::endl;
 
         left = {-2.74529004, -1.01192498};
@@ -318,7 +317,7 @@ int main ()  {
 
         warm_up();
         std::cout << "\033[22;31mCPU Calculation" << std::endl;
-        auto time_cpu = calc_cpu(count/10*1.6,left, right, zPoint,0.95,height,width,1000, false);
+        auto time_cpu = calc_cpu(count,left, right, zPoint,0.95,height,width,1000, save);
 
         auto size = height*width * sizeof(pfc::BGR_4_t) * count/1000000;
 
