@@ -5,7 +5,7 @@ __device__ auto global_thread_idx_x() {
     return blockIdx.x * blockDim.x + threadIdx.x;
 }
 
-__host__ __device__ float norm(cuFloatComplex & z)
+__device__ float norm(cuFloatComplex & z)
 {
     auto x = z.x * z.x;
     auto y = z.y * z.y;
@@ -13,7 +13,7 @@ __host__ __device__ float norm(cuFloatComplex & z)
 }
 
 
-__host__ __device__
+__device__
 int iterate(const cuFloatComplex & c) noexcept {
     auto i {0};
     cuFloatComplex z = {0};
