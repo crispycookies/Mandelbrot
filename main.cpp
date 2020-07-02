@@ -247,7 +247,7 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
             copy_to_cpu(p_buffer_dest, gpu,cpu_source->size());
         });
         time += std::chrono::duration_cast<std::chrono::milliseconds>(timed_run).count();
-        cpu_destination->to_file(prefix+ std::to_string(i)+".bmp");
+        //cpu_destination->to_file(prefix+ std::to_string(i)+".bmp");
     }
 
     free_memory(gpu);
@@ -258,6 +258,39 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     return time;
 }
 
+void warm_up(){
+    std::cout << "\033[22;30mWarming Up CPU" << std::endl;
+    pfc::warm_up_cpu();
+    std::cout << "Finished" << std::endl;
+    std::cout << std::endl;
+}
+
+int calc_cpu(std::size_t count, complex<float> & left, complex<float> & right, const complex<float> & zPoint, const float factor, std::size_t height, std::size_t width, std::size_t additional_threads = 0, const bool save = false){
+    int store_cnt = 0;
+
+    auto slides_0_100 = CalculateOnCPU(count/2,left, right, zPoint,factor,height,width,additional_threads);
+    if(slides_0_100.first.empty()){
+        throw std::string("First Vector in CPU Calculation is Empty");
+    }
+    if(save){
+        std::cout << "Storing First Chunk of Data" << std::endl;
+        store("Mandel_CPU_", slides_0_100.first, store_cnt);
+        std::cout << "Done" << std::endl;
+    }
+    slides_0_100.first.clear();
+
+    auto slides_100_200 = CalculateOnCPU(count/2,left, right, zPoint,factor,height,width,additional_threads);
+    if(slides_100_200.first.empty()){
+        throw std::string("First Vector in CPU Calculation is Empty");
+    }
+    if(save){
+        std::cout << "Storing Second Chunk of Data" << std::endl;
+        store("Mandel_CPU_", slides_100_200.first, store_cnt);
+        std::cout << "Done" << std::endl;
+    }
+    return slides_100_200.second + slides_0_100.second;
+}
+
 int main ()  {
 
     try{
@@ -265,49 +298,34 @@ int main ()  {
         int count = 200;
         int store_cnt = 0;
 
+        int height = 4608;
+        int width = 8192;
+
         complex<float> left = {-2.74529004, -1.01192498};
         complex<float> right = {1.25470996 , 1.23807502};
         complex<float> zPoint = {-0.745289981 , 0.113075003};
 
-        std::cout << "Warming Up CPU" << std::endl;
-        pfc::warm_up_cpu();
-        std::cout << "Finished" << std::endl;
-        std::cout << std::endl;
+        warm_up();
 
         //GPU
         std::cout << "\033[22;32mGPU Calculation" << std::endl;
-        int time_gpu = checked_main(left, right, zPoint, 4608,8192,0.95,count, "Mandel_GPU_");
+        int time_gpu = checked_main(left, right, zPoint, height,width,0.95,count, "Mandel_GPU_");
         std::cout << "Finished" << std::endl;
 
         left = {-2.74529004, -1.01192498};
         right = {1.25470996 , 1.23807502};
         zPoint = {-0.745289981 , 0.113075003};
 
-        std::cout << "Warming Up CPU" << std::endl;
-        pfc::warm_up_cpu();
-        std::cout << "Finished" << std::endl;
-        std::cout << std::endl;
-
+        warm_up();
         std::cout << "\033[22;31mCPU Calculation" << std::endl;
-        auto slides_0_100 = CalculateOnCPU(count/2,left, right, zPoint,0.95,4608,8192,1000);
-        store("Mandel_CPU_", slides_0_100.first, store_cnt);
-        slides_0_100.first.clear();
-        auto slides_100_200 = CalculateOnCPU(count/2,left, right, zPoint,0.95,4608,8192,1000);
-        store("Mandel_CPU_", slides_100_200.first, store_cnt);
-        std::cout << "Finished" << std::endl;
+        auto time_cpu = calc_cpu(count/10*1.6,left, right, zPoint,0.95,height,width,1000, false);
 
-        if(slides_100_200.first.at(0) == nullptr){
-            throw std::string("Cannot Calculate Statistical Data as at least one Element in Result Vector is invalid or empty");
-        }
+        auto size = height*width * sizeof(pfc::BGR_4_t) * count/1000000;
 
-        auto size = slides_100_200.first.at(0)->size() * sizeof(pfc::BGR_4_t) * count/1000000;
-        auto time_cpu = slides_100_200.second + slides_0_100.second;
 
-        if(time_cpu == 0 /*|| time_gpu == 0*/){
+        if(time_cpu == 0 || time_gpu == 0){
             throw std::string("Invalid Time measured");
         }
-
-        slides_100_200.first.clear();
 
         std::cout << "\033[01;37m" << std::endl;
 
