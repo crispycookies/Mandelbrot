@@ -205,21 +205,30 @@ void copy_to_gpu(pfc::pixel_t *& cpu, pfc::pixel_t *& gpu, int size) {
 void copy_to_cpu(pfc::pixel_t *& cpu, pfc::pixel_t *& gpu, int size) {
     check(cudaMemcpy(cpu, gpu, size * sizeof(pfc::pixel_t), cudaMemcpyDeviceToHost));
 }
-void allocate_memory(std::shared_ptr<pfc::bitmap> & cpu_source, std::shared_ptr<pfc::bitmap> & cpu_destination, pfc::pixel_t *& gpu, int width, int height) {
-    cpu_source = std::make_shared<pfc::bitmap>(width, height);
-    cpu_destination = std::make_shared<pfc::bitmap>(width, height);
-
+void allocate_memory(std::vector<std::shared_ptr<pfc::bitmap>> & cpu_destination, pfc::pixel_t *& gpu, int width, int height, const std::size_t count) {
+    for(int i = 0; i < count; i++){
+        cpu_destination.emplace_back(std::make_shared<pfc::bitmap>(width, height));
+    }
     //GPU Malloc
-    check(cudaMalloc(&gpu, cpu_source->size()*sizeof(pfc::pixel_t)));
+    check(cudaMalloc(&gpu, cpu_destination.at(0)->size()*sizeof(pfc::pixel_t)*count));
 }
 void free_memory(pfc::pixel_t *& gpu) {
     check(cudaFree(gpu)); gpu = nullptr;
 }
 
+void copy_to_cpu_vector(std::vector<std::shared_ptr<pfc::bitmap>> & cpu_destination, pfc::pixel_t * gpu){
+    int size = cpu_destination.at(0)->size();
+    for(int i = 0; i < cpu_destination.size(); i++){
+        auto & span_dest {cpu_destination.at(i)->pixel_span ()};
+        pfc::pixel_t * p_buffer_dest {std::data (span_dest)};
+        pfc::pixel_t * offset = (pfc::pixel_t*)(size * sizeof(pfc::pixel_t) * i + (long)gpu);
+
+        copy_to_cpu(p_buffer_dest, offset,cpu_destination.at(i)->size());
+    }
+}
 
 int checked_main(complex<float> & left, complex<float> & right, const complex<float> & zPoint, int height, int width, float factor, int count, const std::string & prefix, const bool save = true, const std::size_t parallel_count = 25){
-    std::shared_ptr<pfc::bitmap> cpu_source = nullptr;
-    std::shared_ptr<pfc::bitmap> cpu_destination= nullptr;
+    std::vector<std::shared_ptr<pfc::bitmap>> cpu_destination;
     pfc::pixel_t * gpu = nullptr;
 
     check(cudaSetDevice(0));
@@ -230,21 +239,28 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     std::cout << "-----------------------------------" << std::endl;
 
     cudaDeviceSynchronize();
-    allocate_memory(cpu_source,cpu_destination,gpu,width,height);
+    allocate_memory(cpu_destination,gpu,width,height,parallel_count);
 
+
+    /*
     auto & span_dest {cpu_destination->pixel_span ()};
     pfc::pixel_t * p_buffer_dest {std::data (span_dest)};
+    */
 
     int time = 0;
 
-    for(int i = 0; i < count;i++){
+    for(int i = 0; i < count/parallel_count;i++){
         auto timed_run = pfc::timed_run([&]() {
-            check(call_iteration_kernel(gpu,left,right,zPoint, height, width,factor));
-            copy_to_cpu(p_buffer_dest, gpu,cpu_destination->size());
+            check(call_iteration_kernel(gpu,left,right,zPoint, height, width,factor, parallel_count));
+            copy_to_cpu_vector(cpu_destination,gpu);
+            //copy_to_cpu(p_buffer_dest, gpu,cpu_destination->size());
         });
         time += std::chrono::duration_cast<std::chrono::milliseconds>(timed_run).count();
         if(save) {
-            cpu_destination->to_file(prefix + std::to_string(i) + ".bmp");
+            for(int c = 0; c < cpu_destination.size(); c++){
+              cpu_destination.at(c)->to_file(prefix + std::to_string((i+1)*c) + ".bmp");
+            }
+            //cpu_destination->to_file(prefix + std::to_string(i) + ".bmp");
         }
     }
 
@@ -295,7 +311,7 @@ int main ()  {
         //General
         int count = 200;
         int store_cnt = 0;
-        bool save = true;
+        bool save = false;
 
         int height = 4608;
         int width = 8192;
@@ -308,7 +324,7 @@ int main ()  {
 
         //GPU
         std::cout << "\033[22;32mGPU Calculation" << std::endl;
-        int time_gpu = checked_main(left, right, zPoint, height,width,0.95,count, "Mandel_GPU_",save);
+        int time_gpu = checked_main(left, right, zPoint, height,width,0.95, 200, "Mandel_GPU_",save,25);
         std::cout << "Finished" << std::endl;
 
         left = {-2.74529004, -1.01192498};
@@ -317,7 +333,7 @@ int main ()  {
 
         warm_up();
         std::cout << "\033[22;31mCPU Calculation" << std::endl;
-        auto time_cpu = calc_cpu(count,left, right, zPoint,0.95,height,width,1000, save);
+        auto time_cpu = 11;//calc_cpu(count,left, right, zPoint,0.95,height,width,1000, save);
 
         auto size = height*width * sizeof(pfc::BGR_4_t) * count/1000000;
 
