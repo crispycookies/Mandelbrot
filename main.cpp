@@ -249,6 +249,8 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
 
     int time = 0;
 
+    int counter = 0;
+
     for(int i = 0; i < count/parallel_count;i++){
         auto timed_run = pfc::timed_run([&]() {
             check(call_iteration_kernel(gpu,left,right,zPoint, height, width, factor, parallel_count));
@@ -257,8 +259,8 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
         });
         time += std::chrono::duration_cast<std::chrono::milliseconds>(timed_run).count();
         if(save) {
-            for(int c = 0; c < cpu_destination.size(); c++){
-              cpu_destination.at(c)->to_file(prefix + std::to_string((i+1)*c) + ".bmp");
+            for(auto & c : cpu_destination){
+              c->to_file(prefix + std::to_string(counter++) + ".bmp");
             }
             //cpu_destination->to_file(prefix + std::to_string(i) + ".bmp");
         }
@@ -311,7 +313,7 @@ int main ()  {
 
     try{
         //General
-        int count = 2;
+        int count = 200;
         bool save = true;
 
         int height = 4608;
@@ -325,7 +327,7 @@ int main ()  {
 
         //GPU
         std::cout << "\033[22;32mGPU Calculation" << std::endl;
-        int time_gpu = checked_main(left, right, zPoint, height,width,0.95, 2, "Mandel_GPU_",save,2);
+        int time_gpu = checked_main(left, right, zPoint, height,width,0.95, count, "Mandel_GPU_",save,25);
         std::cout << "Finished" << std::endl;
 
         left = {-2.74529004, -1.01192498};
@@ -334,7 +336,7 @@ int main ()  {
 
         warm_up();
         std::cout << "\033[22;31mCPU Calculation" << std::endl;
-        auto time_cpu = calc_cpu(count,left, right, zPoint,0.95,height,width,1000, save);
+        auto time_cpu = 11;//calc_cpu(count,left, right, zPoint,0.95,height,width,1000, save);
 
         auto size = height*width * sizeof(pfc::BGR_4_t) * count/1000000;
 

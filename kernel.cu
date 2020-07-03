@@ -31,7 +31,7 @@ int iterate(const cuFloatComplex & c) noexcept {
 
 __global__ void iterate_GPU(pfc::pixel_t * gpu_ptr, float xright, float xleft, float yright, float yleft, const float x_zp, const float y_zp, int height, int width, const size_t count, float factor) {
     size_t const current_idx = global_thread_idx_x();
-    size_t const iteration_idx = current_idx/(height*width);
+    int const iteration_idx = ((int)current_idx)/(height*width);
 
 
 
@@ -43,7 +43,7 @@ __global__ void iterate_GPU(pfc::pixel_t * gpu_ptr, float xright, float xleft, f
     }
 
     int x = (int)current_idx % width;
-    int y = (int)current_idx / (int)(width*(iteration_idx+1)); //- (int)(iteration_idx*width);
+    int y = ((int)current_idx % (height*width))/ width;
 
 
 
@@ -55,20 +55,20 @@ __global__ void iterate_GPU(pfc::pixel_t * gpu_ptr, float xright, float xleft, f
     cuComplex c;
     c.x = {xleft + ((float)x)*dx};
     c.y = {yright - (float)y*dy};
-
-    if(iteration_idx == 1 && current_idx == ((height * width * count)-1)){
+/*
+    if(iteration_idx == 1 && current_idx == ((height * width * count)-4105*2724)){
         //printf(" IDX %f ,%f, %f, %f\n", xright, yright, xleft, yleft);
         printf(" IDX %i ,%i \n", x, y);
         printf(" IDX %f ,%f, %f, %f \n", xright, xleft, yleft,yright);
         printf(" IDX %f ,%f\n", c.y, c.x);
     }
-    if(iteration_idx == 0 && current_idx == ((height * width )-1)){
+    if(iteration_idx == 0 && current_idx == ((height * width )-4105*2724)){
         //printf(" IDY %f ,%f, %f, %f\n", xright, yright, xleft, yleft);
         printf(" IDY %i ,%i \n", x, y);
         printf(" IDY %f ,%f, %f, %f \n", xright, xleft, yleft,yright);
         printf(" IDY %f ,%f\n", c.y, c.x);
     }
-
+*/
     if (current_idx < (height * width * count)) {
         gpu_ptr[current_idx] = {pfc::byte_t(iterate(c)),0,0};
     }
@@ -96,20 +96,21 @@ cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> & 
 */
     iterate_GPU <<<((size+tib-1)/tib),tib >>> (gpu_ptr,  xright, xleft, yright, yleft, zPoint.real(), zPoint.imag(),height, width,count, factor);
 
- /*   for(size_t i = 0; i < count; i++){
+    for(size_t i = 0; i < count; i++){
         xright -= (xright - zPoint.real()) * (1-factor);
         yright -= (yright - zPoint.imag()) * (1-factor);
         xleft -= (xleft - zPoint.real()) * (1-factor);
         yleft -= (yleft - zPoint.imag()) * (1-factor);
     }
 
-  */
+
+
     left = {xleft, yleft};
     right = {xright, yright};
 
 
-    std::cout << "LEFT:" <<left << std::endl;
-    std::cout << "RIGHT:" <<right << std::endl;
+    //std::cout << "LEFT:" <<left << std::endl;
+    //std::cout << "RIGHT:" <<right << std::endl;
 
     cudaDeviceSynchronize();
     return cudaGetLastError();
