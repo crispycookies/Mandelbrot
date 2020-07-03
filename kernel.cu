@@ -48,7 +48,7 @@ cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> & 
 
     auto const size{ static_cast <int> (height*width) };
 
-    auto const  tib = 512;
+    auto const  tib = 1024;
 
     auto xleft = left.real();
     auto yleft = left.imag();
