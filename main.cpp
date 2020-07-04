@@ -233,23 +233,47 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     allocate_memory(cpu_source,cpu_destination,gpu,width,height);
 
 
+    int nStreams = 128;
+    cudaStream_t stream[nStreams];
+    for (int i = 0; i < nStreams ; i ++)
+    {
+        check(cudaStreamCreate(&stream[i]));
+    }
+
 
     auto & span_dest {cpu_destination->pixel_span ()};
     pfc::pixel_t * p_buffer_dest {std::data (span_dest)};
+
+    pfc::BGR_4_t * test = nullptr;
+
+    check(cudaMallocHost(&test,cpu_source->size()*sizeof(pfc::pixel_t)));
 
     int time = 0;
 
     for(int i = 0; i < count;i++){
         auto timed_run = pfc::timed_run([&]() {
-            check(call_iteration_kernel(gpu,left,right,zPoint, height, width,factor));
-            copy_to_cpu(p_buffer_dest, gpu,cpu_source->size());
+            check(call_iteration_kernel(gpu,left,right,zPoint, height, width,factor, stream, nStreams));
+
+            int size = cpu_source->size();
+            for(int c = 0; c < nStreams; c++){
+                check(cudaMemcpyAsync(&test[(size/nStreams)*c], &gpu[(size/nStreams)*c], cpu_source->size() * sizeof(pfc::pixel_t)/nStreams, cudaMemcpyDeviceToHost, stream[c]));
+            }
+
+            //copy_to_cpu(p_buffer_dest, gpu,cpu_source->size());
         });
+        cudaMemcpy(p_buffer_dest,test,cpu_source->size()*sizeof(pfc::pixel_t), cudaMemcpyHostToHost);
         time += std::chrono::duration_cast<std::chrono::milliseconds>(timed_run).count();
         if(save) {
             cpu_destination->to_file(prefix + std::to_string(i) + ".bmp");
         }
+
+    }
+    for (int i = 0; i < nStreams; i ++)
+    {
+        check(cudaStreamDestroy(stream[i]));
     }
 
+    cudaFreeHost(test);
     free_memory(gpu);
     check(cudaDeviceReset());
 
@@ -295,9 +319,9 @@ int main ()  {
 
     try{
         //General
-        int count = 2;
+        int count = 200;
         int store_cnt = 0;
-        bool save = true;
+        bool save = false;
 
         int height = 4608;
         int width = 8192;
