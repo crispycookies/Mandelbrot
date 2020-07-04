@@ -17,6 +17,7 @@ __device__
 int iterate(const cuFloatComplex & c) noexcept {
     auto i {0};
     cuFloatComplex z = {0};
+#pragma unroll
     do{
         z = cuCmulf(z,z);
         z = cuCaddf(z,c);
@@ -26,7 +27,7 @@ int iterate(const cuFloatComplex & c) noexcept {
 
 
 __global__ void iterate_GPU(pfc::pixel_t * gpu_ptr, float xright, float xleft, float yright, float yleft, int height, int width) {
-    size_t const current_idx = global_thread_idx_x();
+    size_t const current_idx = global_thread_idx_x()*2;
 
     float dx = (xright - xleft)/(float)(width - 1);
     float dy = (yright - yleft)/(float)(height - 1);
@@ -38,8 +39,13 @@ __global__ void iterate_GPU(pfc::pixel_t * gpu_ptr, float xright, float xleft, f
     c.x = {xleft + ((float)x)*dx};
     c.y = {yright - (float)y*dy};
 
+    cuComplex c1;
+    c1.x = {xleft + ((float)x+1)*dx};
+    c1.y = {yright - (float)(y+1)*dy};
+
     if (current_idx < height * width) {
         gpu_ptr[current_idx] = {pfc::byte_t(iterate(c)),0,0};
+        gpu_ptr[current_idx+1] = {pfc::byte_t(iterate(c1)),0,0};
     }
 }
 
@@ -60,7 +66,7 @@ cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> & 
     xleft -= (xleft - zPoint.real()) * (1-factor);
     yleft -= (yleft - zPoint.imag()) * (1-factor);
 
-    iterate_GPU <<<((size+tib-1)/tib),tib >>> (gpu_ptr,  xright, xleft, yright, yleft, height, width);
+    iterate_GPU <<<((size+tib-1)/(tib*2)),tib >>> (gpu_ptr,  xright, xleft, yright, yleft, height, width);
 
     left = {xleft, yleft};
     right = {xright, yright};

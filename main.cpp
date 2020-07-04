@@ -232,6 +232,8 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     cudaDeviceSynchronize();
     allocate_memory(cpu_source,cpu_destination,gpu,width,height);
 
+
+
     auto & span_dest {cpu_destination->pixel_span ()};
     pfc::pixel_t * p_buffer_dest {std::data (span_dest)};
 
@@ -293,7 +295,7 @@ int main ()  {
 
     try{
         //General
-        int count = 200;
+        int count = 2;
         int store_cnt = 0;
         bool save = true;
 
@@ -317,7 +319,7 @@ int main ()  {
 
         warm_up();
         std::cout << "\033[22;31mCPU Calculation" << std::endl;
-        auto time_cpu = calc_cpu(count,left, right, zPoint,0.95,height,width,1000, save);
+        auto time_cpu = 11; //calc_cpu(count,left, right, zPoint,0.95,height,width,1000, save);
 
         auto size = height*width * sizeof(pfc::BGR_4_t) * count/1000000;
 
