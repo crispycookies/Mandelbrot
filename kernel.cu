@@ -73,9 +73,8 @@ cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> & 
         iterate_GPU <<<((size+tib-1)/(tib*num_stream)),tib ,0, streams[i]>>> (&gpu_ptr[offset],  xright, xleft, yright, yleft, height, width, offset, dx, dy);
     }*/
     auto offset =  gpu_ptr;
-    iterate_GPU <<<((size+tib-1)/(tib)),tib ,0, *streams>>> (&gpu_ptr[count*height*width],  xright, xleft, yright, yleft, 0 , dx, dy);
+    iterate_GPU <<<((size+tib-1)/(tib)),tib ,0, *streams>>> (gpu_ptr,  xright, xleft, yright, yleft, 0 , dx, dy);
 
-    std::cout << "GPU PTR: " << gpu_ptr << " GPU_PTR: Offset "<< &gpu_ptr[0] << std::endl;
 
     left = {xleft, yleft};
     right = {xright, yright};

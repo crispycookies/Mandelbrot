@@ -233,8 +233,8 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     allocate_memory(cpu_source,cpu_destination,gpu,width,height);
 
 
-    int nStreams = 25;
-    cudaStream_t stream[nStreams];
+    const int nStreams = 25;
+    cudaStream_t stream[nStreams] = {};
     for (int i = 0; i < nStreams ; i ++)
     {
         check(cudaStreamCreate(&stream[i]));
@@ -244,7 +244,7 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     auto & span_dest {cpu_destination->pixel_span ()};
     pfc::pixel_t * p_buffer_dest {std::data (span_dest)};
 
-    pfc::BGR_4_t * test = nullptr;
+    pfc::pixel_t * test = nullptr;
 
     check(cudaMallocHost(&test,cpu_source->size()*sizeof(pfc::pixel_t)*nStreams));
 
@@ -256,9 +256,12 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
 
             pfc::parallel_range<size_t>(nStreams, nStreams, [&](size_t t, size_t begin, size_t end) {
                 int size = cpu_source->size();
-                check(call_iteration_kernel(gpu,left,right,zPoint, height, width,factor, &stream[begin], begin));
+                check(call_iteration_kernel(&gpu[(size)*begin],left,right,zPoint, height, width,factor, &stream[begin], begin));
                 check(cudaMemcpyAsync(&test[(size)*begin], &gpu[(size/nStreams)*begin], cpu_source->size() * sizeof(pfc::pixel_t), cudaMemcpyDeviceToHost, stream[begin]));
                 check(cudaStreamSynchronize(stream[begin]));
+
+                std::cout << "GPU PTR: " << gpu << " GPU_PTR: Offset "<< &gpu[(size)*begin] << std::endl;
+                //std::cout << "-- PTR: " << test << " -- PTR: Offset "<< &test[(size)*begin] << std::endl;
             });
             //cudaDeviceSynchronize();
 
