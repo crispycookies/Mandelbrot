@@ -250,13 +250,14 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
 
     int time = 0;
 
+    int c = 0;
 #pragma unroll
     for(int i = 0; i < count;i+=nStreams){
         auto timed_run = pfc::timed_run([&]() {
 
             pfc::parallel_range<size_t>(nStreams, nStreams, [&](size_t t, size_t begin, size_t end) {
                 int size = cpu_source->size();
-                check(call_iteration_kernel(&gpu[(size)*begin],left,right,zPoint, height, width,factor, &stream[begin], begin));
+                check(call_iteration_kernel(&gpu[(size)*begin],left,right,zPoint, height, width,factor, &stream[begin], c++));
                 check(cudaMemcpyAsync(&test[(size)*begin], &gpu[(size/nStreams)*begin], cpu_source->size() * sizeof(pfc::pixel_t), cudaMemcpyDeviceToHost, stream[begin]));
                 check(cudaStreamSynchronize(stream[begin]));
 
