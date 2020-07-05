@@ -258,16 +258,14 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
                 int size = cpu_source->size();
                 check(call_iteration_kernel(gpu,left,right,zPoint, height, width,factor, &stream[begin], begin));
                 check(cudaMemcpyAsync(&test[(size)*begin], &gpu[(size/nStreams)*begin], cpu_source->size() * sizeof(pfc::pixel_t), cudaMemcpyDeviceToHost, stream[begin]));
-
+                check(cudaStreamSynchronize(stream[begin]));
             });
-            cudaDeviceSynchronize();
-
-
+            //cudaDeviceSynchronize();
 
             //copy_to_cpu(p_buffer_dest, gpu,cpu_source->size());
         });
         for(int z = 0; z < nStreams; z++){
-            cudaMemcpy(p_buffer_dest,&test[z*height*width],cpu_source->size()*sizeof(pfc::pixel_t), cudaMemcpyHostToHost);
+            cudaMemcpy(p_buffer_dest,&test[height*width*z],cpu_source->size()*sizeof(pfc::pixel_t), cudaMemcpyHostToHost);
             if(save) {
                 cpu_destination->to_file(prefix + std::to_string(i) + "_" + std::to_string(z) + ".bmp");
             }
@@ -328,7 +326,7 @@ int main ()  {
 
     try{
         //General
-        int count = 20;
+        int count = 200;
         int store_cnt = 0;
         bool save = true;
 

@@ -1,3 +1,4 @@
+#include <iostream>
 #include "kernel.cuh"
 #include "math.h"
 #include "misc/pfc_threading.h"
@@ -33,8 +34,8 @@ int iterate(const cuFloatComplex & c) noexcept {
 __global__ void iterate_GPU(pfc::pixel_t * gpu_ptr, float xright, float xleft, float yright, float yleft, int offset, float  dx, float dy) {
     size_t const current_idx = (global_thread_idx_x());
 
-    int x = (int)(current_idx+offset) % width;
-    int y = (int)(current_idx+offset) / width;
+    int x = (int)(current_idx) % width;
+    int y = (int)(current_idx) / width;
 
     cuComplex c;
     c.x = {xleft + ((float)x)*dx};
@@ -47,7 +48,6 @@ __global__ void iterate_GPU(pfc::pixel_t * gpu_ptr, float xright, float xleft, f
 
 
 cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> & left, std::complex<float>  & right, const std::complex<float>  & zPoint, int height, int width, float factor, cudaStream_t * streams, int count){
-
     auto const size{ static_cast <int> (height*width) };
 
     auto const  tib = 512;
@@ -72,8 +72,10 @@ cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> & 
         auto offset =  (size/num_stream)*(i);
         iterate_GPU <<<((size+tib-1)/(tib*num_stream)),tib ,0, streams[i]>>> (&gpu_ptr[offset],  xright, xleft, yright, yleft, height, width, offset, dx, dy);
     }*/
+    auto offset =  gpu_ptr;
+    iterate_GPU <<<((size+tib-1)/(tib)),tib ,0, *streams>>> (&gpu_ptr[count*height*width],  xright, xleft, yright, yleft, 0 , dx, dy);
 
-    iterate_GPU <<<((size+tib-1)/(tib)),tib ,0, *streams>>> (gpu_ptr,  xright, xleft, yright, yleft,  0, dx, dy);
+    std::cout << "GPU PTR: " << gpu_ptr << " GPU_PTR: Offset "<< &gpu_ptr[0] << std::endl;
 
     left = {xleft, yleft};
     right = {xright, yright};
