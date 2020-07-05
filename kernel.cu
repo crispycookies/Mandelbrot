@@ -13,12 +13,12 @@ __device__ inline float norm(cuFloatComplex & z)
 {
     auto x = z.x * z.x;
     auto y = z.y * z.y;
-    return sqrt(x+y);
+    return x+y;
 }
 
 
 __device__
-int inline iterate(const cuFloatComplex & c) noexcept {
+int iterate(const cuFloatComplex & c) noexcept {
     auto i {0};
     cuFloatComplex z = {0};
 #pragma unroll
@@ -42,7 +42,6 @@ __global__ void iterate_GPU(pfc::pixel_t * gpu_ptr, float xright, float xleft, f
 
     if (current_idx < height*width) {
         gpu_ptr[current_idx] = {pfc::byte_t(iterate(c)),0,0};
-        //gpu_ptr[current_idx+1] = {pfc::byte_t(iterate(c)),0,0};
     }
 }
 
@@ -51,7 +50,7 @@ cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> & 
 
     auto const size{ static_cast <int> (height*width) };
 
-    auto const  tib = 128;
+    auto const  tib = 512;
 
     auto xleft = left.real();
     auto yleft = left.imag();

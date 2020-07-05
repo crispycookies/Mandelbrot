@@ -210,7 +210,7 @@ void allocate_memory(std::shared_ptr<pfc::bitmap> & cpu_source, std::shared_ptr<
     cpu_destination = std::make_shared<pfc::bitmap>(width, height);
 
     //GPU Malloc
-    check(cudaMalloc(&gpu, cpu_source->size()*sizeof(pfc::pixel_t)*20));
+    check(cudaMalloc(&gpu, cpu_source->size()*sizeof(pfc::pixel_t)*25));
 }
 void free_memory(pfc::pixel_t *& gpu) {
     check(cudaFree(gpu)); gpu = nullptr;
@@ -250,6 +250,7 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
 
     int time = 0;
 
+#pragma unroll
     for(int i = 0; i < count;i+=nStreams){
         auto timed_run = pfc::timed_run([&]() {
 
@@ -327,9 +328,9 @@ int main ()  {
 
     try{
         //General
-        int count = 200;
+        int count = 20;
         int store_cnt = 0;
-        bool save = false;
+        bool save = true;
 
         int height = 4608;
         int width = 8192;
