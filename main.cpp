@@ -258,11 +258,8 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
             pfc::parallel_range<size_t>(nStreams, nStreams, [&](size_t t, size_t begin, size_t end) {
                 int size = cpu_source->size();
                 check(call_iteration_kernel(&gpu[(size)*begin],left,right,zPoint, height, width,factor, &stream[begin], c++));
-                check(cudaMemcpyAsync(&test[(size)*begin], &gpu[(size/nStreams)*begin], cpu_source->size() * sizeof(pfc::pixel_t), cudaMemcpyDeviceToHost, stream[begin]));
+                check(cudaMemcpyAsync(&test[(size)*begin], &gpu[(size)*begin], cpu_source->size() * sizeof(pfc::pixel_t), cudaMemcpyDeviceToHost, stream[begin]));
                 check(cudaStreamSynchronize(stream[begin]));
-
-                std::cout << "GPU PTR: " << gpu << " GPU_PTR: Offset "<< &gpu[(size)*begin] << std::endl;
-                //std::cout << "-- PTR: " << test << " -- PTR: Offset "<< &test[(size)*begin] << std::endl;
             });
             //cudaDeviceSynchronize();
 
@@ -332,7 +329,7 @@ int main ()  {
         //General
         int count = 200;
         int store_cnt = 0;
-        bool save = true;
+        bool save = false;
 
         int height = 4608;
         int width = 8192;
