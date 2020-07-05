@@ -233,7 +233,7 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     allocate_memory(cpu_source,cpu_destination,gpu,width,height);
 
 
-    int nStreams = 128;
+    int nStreams = 1;
     cudaStream_t stream[nStreams];
     for (int i = 0; i < nStreams ; i ++)
     {
@@ -330,7 +330,7 @@ int main ()  {
         complex<float> right = {1.25470996 , 1.23807502};
         complex<float> zPoint = {-0.745289981 , 0.113075003};
 
-        warm_up();
+        //warm_up();
 
         //GPU
         std::cout << "\033[22;32mGPU Calculation" << std::endl;
@@ -341,7 +341,7 @@ int main ()  {
         right = {1.25470996 , 1.23807502};
         zPoint = {-0.745289981 , 0.113075003};
 
-        warm_up();
+        //warm_up();
         std::cout << "\033[22;31mCPU Calculation" << std::endl;
         auto time_cpu = 11; //calc_cpu(count,left, right, zPoint,0.95,height,width,1000, save);
 
