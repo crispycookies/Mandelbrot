@@ -329,7 +329,7 @@ int main ()  {
         //General
         int count = 200;
         int store_cnt = 0;
-        bool save = false;
+        bool save = true;
 
         int height = 4608;
         int width = 8192;
