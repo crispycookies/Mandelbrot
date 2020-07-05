@@ -70,8 +70,10 @@ cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> & 
 
 
     for(int i = 0; i < num_stream; i++){
-        iterate_GPU <<<((size+tib-1)/(tib*num_stream)),tib ,0, streams[i]>>> (&gpu_ptr[offsets[i]],  xright, xleft, yright, yleft, height, width, offsets[i]);
+       iterate_GPU <<<((size+tib-1)/(tib*num_stream)),tib ,0, streams[i]>>> (&gpu_ptr[offsets[i]],  xright, xleft, yright, yleft, height, width, offsets[i]);
     }
+
+    //iterate_GPU <<<((size+tib-1)/(tib)),tib ,0>>> (gpu_ptr,  xright, xleft, yright, yleft, height, width, 0);
 
     left = {xleft, yleft};
     right = {xright, yright};
