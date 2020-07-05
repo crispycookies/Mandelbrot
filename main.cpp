@@ -210,7 +210,7 @@ void allocate_memory(std::shared_ptr<pfc::bitmap> & cpu_source, std::shared_ptr<
     cpu_destination = std::make_shared<pfc::bitmap>(width, height);
 
     //GPU Malloc
-    check(cudaMalloc(&gpu, cpu_source->size()*sizeof(pfc::pixel_t)));
+    check(cudaMalloc(&gpu, cpu_source->size()*sizeof(pfc::pixel_t)*20));
 }
 void free_memory(pfc::pixel_t *& gpu) {
     check(cudaFree(gpu)); gpu = nullptr;
@@ -233,7 +233,7 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     allocate_memory(cpu_source,cpu_destination,gpu,width,height);
 
 
-    int nStreams = 16;
+    int nStreams = 25;
     cudaStream_t stream[nStreams];
     for (int i = 0; i < nStreams ; i ++)
     {
@@ -246,26 +246,34 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
 
     pfc::BGR_4_t * test = nullptr;
 
-    check(cudaMallocHost(&test,cpu_source->size()*sizeof(pfc::pixel_t)));
+    check(cudaMallocHost(&test,cpu_source->size()*sizeof(pfc::pixel_t)*nStreams));
 
     int time = 0;
 
-    for(int i = 0; i < count;i++){
+    for(int i = 0; i < count;i+=nStreams){
         auto timed_run = pfc::timed_run([&]() {
-            check(call_iteration_kernel(gpu,left,right,zPoint, height, width,factor, stream, nStreams));
 
-            int size = cpu_source->size();
-            for(int c = 0; c < nStreams; c++){
-                check(cudaMemcpyAsync(&test[(size/nStreams)*c], &gpu[(size/nStreams)*c], cpu_source->size() * sizeof(pfc::pixel_t)/nStreams, cudaMemcpyDeviceToHost, stream[c]));
-            }
+            pfc::parallel_range<size_t>(nStreams, nStreams, [&](size_t t, size_t begin, size_t end) {
+                int size = cpu_source->size();
+                check(call_iteration_kernel(gpu,left,right,zPoint, height, width,factor, &stream[begin], begin));
+                check(cudaMemcpyAsync(&test[(size)*begin], &gpu[(size/nStreams)*begin], cpu_source->size() * sizeof(pfc::pixel_t), cudaMemcpyDeviceToHost, stream[begin]));
+
+            });
+            cudaDeviceSynchronize();
+
+
 
             //copy_to_cpu(p_buffer_dest, gpu,cpu_source->size());
         });
-        cudaMemcpy(p_buffer_dest,test,cpu_source->size()*sizeof(pfc::pixel_t), cudaMemcpyHostToHost);
-        time += std::chrono::duration_cast<std::chrono::milliseconds>(timed_run).count();
-        if(save) {
-            cpu_destination->to_file(prefix + std::to_string(i) + ".bmp");
+        for(int z = 0; z < nStreams; z++){
+            cudaMemcpy(p_buffer_dest,&test[z*height*width],cpu_source->size()*sizeof(pfc::pixel_t), cudaMemcpyHostToHost);
+            if(save) {
+                cpu_destination->to_file(prefix + std::to_string(i) + "_" + std::to_string(z) + ".bmp");
+            }
         }
+        //cudaMemcpy(p_buffer_dest,test,cpu_source->size()*sizeof(pfc::pixel_t), cudaMemcpyHostToHost);
+        time += std::chrono::duration_cast<std::chrono::milliseconds>(timed_run).count();
+
 
     }
     for (int i = 0; i < nStreams; i ++)
