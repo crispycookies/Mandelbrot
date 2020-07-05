@@ -233,7 +233,7 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     allocate_memory(cpu_source,cpu_destination,gpu,width,height);
 
 
-    int nStreams = 1;
+    int nStreams = 16;
     cudaStream_t stream[nStreams];
     for (int i = 0; i < nStreams ; i ++)
     {

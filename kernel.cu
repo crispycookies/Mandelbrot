@@ -1,5 +1,6 @@
 #include "kernel.cuh"
 #include "math.h"
+#include "misc/pfc_threading.h"
 
 __device__ auto global_thread_idx_x() {
     return blockIdx.x * blockDim.x + threadIdx.x;
@@ -50,7 +51,7 @@ cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> & 
 
     auto const size{ static_cast <int> (height*width) };
 
-    auto const  tib = 128;
+    auto const  tib = 512;
 
     auto xleft = left.real();
     auto yleft = left.imag();
@@ -62,15 +63,9 @@ cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> & 
     xleft -= (xleft - zPoint.real()) * (1-factor);
     yleft -= (yleft - zPoint.imag()) * (1-factor);
 
-    int * offsets = new int[num_stream];
-
     for(int i = 0; i < num_stream; i++){
-        offsets[i] =  (size/num_stream)*(i);
-    }
-
-
-    for(int i = 0; i < num_stream; i++){
-       iterate_GPU <<<((size+tib-1)/(tib*num_stream)),tib ,0, streams[i]>>> (&gpu_ptr[offsets[i]],  xright, xleft, yright, yleft, height, width, offsets[i]);
+        auto offset =  (size/num_stream)*(i);
+        iterate_GPU <<<((size+tib-1)/(tib*num_stream)),tib ,0, streams[i]>>> (&gpu_ptr[offset],  xright, xleft, yright, yleft, height, width, offset);
     }
 
     //iterate_GPU <<<((size+tib-1)/(tib)),tib ,0>>> (gpu_ptr,  xright, xleft, yright, yleft, height, width, 0);
