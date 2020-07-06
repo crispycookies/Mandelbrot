@@ -273,6 +273,7 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     auto xright = right.real();
     auto yright = right.imag();
 
+#pragma unroll
     for(int i = 1; i <= count; i++){
         xright -= (xright - zPoint.real()) * (1-factor);
         yright -= (yright - zPoint.imag()) * (1-factor);
@@ -290,7 +291,7 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
 
             pfc::parallel_range<size_t>(nStreams, nStreams, [&](size_t t, size_t begin, size_t end) {
                 int size = cpu_source->size();
-                check(call_iteration_kernel(&gpu[(size)*begin],left,right,zPoint, height, width,factor, &stream[begin], c++));
+                check(call_iteration_kernel(&gpu[(size)*begin],left_vect.at(c),right_vect.at(c), height, width,factor, &stream[begin], c++));
                 check(cudaMemcpyAsync(&test[(size)*begin], &gpu[(size)*begin], cpu_source->size() * sizeof(pfc::pixel_t), cudaMemcpyDeviceToHost, stream[begin]));
                 check(cudaStreamSynchronize(stream[begin]));
             });
