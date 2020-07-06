@@ -262,27 +262,6 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
 
     int c = 0;
 
-    //complex<float> & le, complex<float> & right, const complex<float> & zPoint
-
-
-    std::vector<complex<float>> right_vect;
-    std::vector<complex<float>> left_vect;
-
-    auto xleft = left.real();
-    auto yleft = left.imag();
-    auto xright = right.real();
-    auto yright = right.imag();
-
-    for(int i = 1; i <= count; i++){
-        xright -= (xright - zPoint.real()) * (1-factor);
-        yright -= (yright - zPoint.imag()) * (1-factor);
-        xleft -= (xleft - zPoint.real()) * (1-factor);
-        yleft -= (yleft - zPoint.imag()) * (1-factor);
-
-        right_vect.emplace_back(complex<float>{xright, yright});
-        left_vect.emplace_back(complex<float>{xleft,yleft});
-    }
-
 
 #pragma unroll
     for(int i = 0; i < count;i+=nStreams){
@@ -365,7 +344,7 @@ int main ()  {
         //General
         int count = 200;
         int store_cnt = 0;
-        bool save = false;
+        bool save = true;
 
         int height = 4608;
         int width = 8192;
@@ -374,7 +353,7 @@ int main ()  {
         complex<float> right = {1.25470996 , 1.23807502};
         complex<float> zPoint = {-0.745289981 , 0.113075003};
 
-        //warm_up();
+        warm_up();
 
         //GPU
         std::cout << "\033[22;32mGPU Calculation" << std::endl;
@@ -385,7 +364,7 @@ int main ()  {
         right = {1.25470996 , 1.23807502};
         zPoint = {-0.745289981 , 0.113075003};
 
-        //warm_up();
+        warm_up();
         std::cout << "\033[22;31mCPU Calculation" << std::endl;
         auto time_cpu = 11;//calc_cpu(count,left, right, zPoint,0.95,height,width,1000, save);
 
