@@ -29,8 +29,8 @@ int inline iterate(const cuFloatComplex & c) noexcept {
 }
 
 
-__global__ void iterate_GPU(pfc::pixel_t * gpu_ptr,  float xleft, float yright, float  dx, float dy, float inv_width) {
-    size_t const current_idx = (global_thread_idx_x());
+__global__ void iterate_GPU(pfc::pixel_t * gpu_ptr,  float xleft, float yright, float  dx, float dy, float inv_width, int offset) {
+    size_t const current_idx = (global_thread_idx_x()+offset);
 
     int x = (int)(current_idx) % width;
     int y = (int)((current_idx) * inv_width);
@@ -45,10 +45,10 @@ __global__ void iterate_GPU(pfc::pixel_t * gpu_ptr,  float xleft, float yright, 
 }
 
 
-cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> left, std::complex<float>  right, const std::complex<float>  & zPoint, int height, int width, float factor, cudaStream_t * streams, int count){
+cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float>  left, std::complex<float>  right, const std::complex<float>  & zPoint,  int height, int width, float factor, cudaStream_t * streams, int count, int offset, int thread_cnt){
     auto const size{ static_cast <int> (height*width) };
 
-    auto const  tib = 128;
+    auto const  tib = 64;
 
     auto xleft = left.real();
     auto yleft = left.imag();
@@ -68,7 +68,7 @@ cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> le
     float dx = (xright - xleft)/(float)(width - 1);
     float dy = (yright - yleft)/(float)(height - 1);
 
-    iterate_GPU <<<((size+tib-1)/(tib)),tib ,0, *streams>>> (gpu_ptr,  xleft, yright, dx, dy, (1./width));
+    iterate_GPU <<<((size+tib-1)/(tib*thread_cnt)),tib ,0, *streams>>> (gpu_ptr,  xleft, yright, dx, dy, (1./width), offset);
 
 
     return cudaGetLastError();

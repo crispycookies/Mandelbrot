@@ -260,16 +260,18 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
 
     int time = 0;
 
-    int c = 0;
-
-
 #pragma unroll
     for(int i = 0; i < count;i+=nStreams){
         auto timed_run = pfc::timed_run([&]() {
 
             pfc::parallel_range<size_t>(nStreams, nStreams, [&](size_t t, size_t begin, size_t end) {
                 int size = cpu_source->size();
-                check(call_iteration_kernel(&gpu[(size)*begin],left,right,zPoint, height, width,factor, &stream[begin], c++));
+                static const auto thread_cnt = 100;
+                pfc::parallel_range<size_t>(thread_cnt, thread_cnt, [&](size_t t2, size_t begin2, size_t end2) {
+                    const static auto offset_base = height*width/thread_cnt;
+                    const auto offset = offset_base*begin2;
+                    check(call_iteration_kernel(&gpu[(size)*begin],left,right,zPoint, height, width,factor, &stream[begin], begin, offset, thread_cnt));
+                });
                 check(cudaMemcpyAsync(&test[(size)*begin], &gpu[(size)*begin], cpu_source->size() * sizeof(pfc::pixel_t), cudaMemcpyDeviceToHost, stream[begin]));
                 check(cudaStreamSynchronize(stream[begin]));
             });
@@ -344,7 +346,7 @@ int main ()  {
         //General
         int count = 200;
         int store_cnt = 0;
-        bool save = true;
+        bool save = false;
 
         int height = 4608;
         int width = 8192;
@@ -353,7 +355,7 @@ int main ()  {
         complex<float> right = {1.25470996 , 1.23807502};
         complex<float> zPoint = {-0.745289981 , 0.113075003};
 
-        warm_up();
+        //warm_up();
 
         //GPU
         std::cout << "\033[22;32mGPU Calculation" << std::endl;
@@ -364,7 +366,7 @@ int main ()  {
         right = {1.25470996 , 1.23807502};
         zPoint = {-0.745289981 , 0.113075003};
 
-        warm_up();
+        //warm_up();
         std::cout << "\033[22;31mCPU Calculation" << std::endl;
         auto time_cpu = 11;//calc_cpu(count,left, right, zPoint,0.95,height,width,1000, save);
 
