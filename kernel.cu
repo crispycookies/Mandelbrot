@@ -50,7 +50,7 @@ __global__ void iterate_GPU(pfc::pixel_t * gpu_ptr,  float xleft, float yright, 
 cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> left, std::complex<float>  right, const std::complex<float>  & zPoint, int height, int width, float factor, cudaStream_t * streams, int count){
     auto const size{ static_cast <int> (height*width) };
 
-    auto const  tib = 128;
+    auto const  tib = 256;
 
     auto xleft = left.real();
     auto yleft = left.imag();

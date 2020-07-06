@@ -261,6 +261,29 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     int time = 0;
 
     int c = 0;
+
+    //complex<float> & le, complex<float> & right, const complex<float> & zPoint
+
+
+    std::vector<complex<float>> right_vect;
+    std::vector<complex<float>> left_vect;
+
+    auto xleft = left.real();
+    auto yleft = left.imag();
+    auto xright = right.real();
+    auto yright = right.imag();
+
+    for(int i = 1; i <= count; i++){
+        xright -= (xright - zPoint.real()) * (1-factor);
+        yright -= (yright - zPoint.imag()) * (1-factor);
+        xleft -= (xleft - zPoint.real()) * (1-factor);
+        yleft -= (yleft - zPoint.imag()) * (1-factor);
+
+        right_vect.emplace_back(complex<float>{xright, yright});
+        left_vect.emplace_back(complex<float>{xleft,yleft});
+    }
+
+
 #pragma unroll
     for(int i = 0; i < count;i+=nStreams){
         auto timed_run = pfc::timed_run([&]() {
