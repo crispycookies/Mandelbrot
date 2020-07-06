@@ -31,7 +31,7 @@ int iterate(const cuFloatComplex & c) noexcept {
 }
 
 
-__global__ void iterate_GPU(pfc::pixel_t * gpu_ptr, float xright, float xleft, float yright, float yleft, int offset, float  dx, float dy) {
+__global__ void iterate_GPU(pfc::pixel_t * gpu_ptr,  float xleft, float yright, float  dx, float dy) {
     size_t const current_idx = (global_thread_idx_x());
 
     int x = (int)(current_idx) % width;
@@ -42,7 +42,7 @@ __global__ void iterate_GPU(pfc::pixel_t * gpu_ptr, float xright, float xleft, f
     c.y = {yright - (float)y*dy};
 
     if (current_idx < height*width) {
-        gpu_ptr[current_idx] = {pfc::byte_t(iterate(c)),0,0};
+        gpu_ptr[current_idx].blue = pfc::byte_t(iterate(c));
     }
 }
 
@@ -50,13 +50,14 @@ __global__ void iterate_GPU(pfc::pixel_t * gpu_ptr, float xright, float xleft, f
 cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> left, std::complex<float>  right, const std::complex<float>  & zPoint, int height, int width, float factor, cudaStream_t * streams, int count){
     auto const size{ static_cast <int> (height*width) };
 
-    auto const  tib = 512;
+    auto const  tib = 128;
 
     auto xleft = left.real();
     auto yleft = left.imag();
     auto xright = right.real();
     auto yright = right.imag();
 
+#pragma unroll
     for(int i = 1; i <= count; i++){
         xright -= (xright - zPoint.real()) * (1-factor);
         yright -= (yright - zPoint.imag()) * (1-factor);
@@ -68,12 +69,7 @@ cudaError_t call_iteration_kernel(pfc::pixel_t * gpu_ptr, std::complex<float> le
     float dx = (xright - xleft)/(float)(width - 1);
     float dy = (yright - yleft)/(float)(height - 1);
 
-    /*for(int i = 0; i < num_stream; i++){
-        auto offset =  (size/num_stream)*(i);
-        iterate_GPU <<<((size+tib-1)/(tib*num_stream)),tib ,0, streams[i]>>> (&gpu_ptr[offset],  xright, xleft, yright, yleft, height, width, offset, dx, dy);
-    }*/
-    auto offset =  gpu_ptr;
-    iterate_GPU <<<((size+tib-1)/(tib)),tib ,0, *streams>>> (gpu_ptr,  xright, xleft, yright, yleft, 0 , dx, dy);
+    iterate_GPU <<<((size+tib-1)/(tib)),tib ,0, *streams>>> (gpu_ptr,  xleft, yright, dx, dy);
 
 
     return cudaGetLastError();

@@ -13,9 +13,17 @@
 
 using namespace std;
 
+inline float norm(complex<float> & z)
+{
+    auto x = z.real() * z.real();
+    auto y = z.imag() * z.imag();
+    return x+y;
+}
+
 inline int iterate(int & i, complex<float> & z, const  complex<float> & c) noexcept {
     //auto i {0};
     //complex<double> z = 0;
+#pragma unroll
     do{
         z *= z;
         z += c;
@@ -29,6 +37,7 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
     //preallocating
     std::cout << "\033[22;31mPre-Alloc Buffer for Pictures" << std::endl;
     auto pre_alloc = pfc::timed_run([&]() {
+#pragma unroll
         for(int i = 0; i < count; i++){
             retval.emplace_back(std::make_shared<pfc::bitmap>(width, height));
         }
@@ -47,6 +56,7 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
     int c = 0;
 
     auto calculation = pfc::timed_run([&]() {
+#pragma unroll
         for(auto bmp : retval){
             //std::cout << c++ << std::endl;
             xright -= (xright - zPoint.real()) * (1-factor);
@@ -265,6 +275,7 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
 
             //copy_to_cpu(p_buffer_dest, gpu,cpu_source->size());
         });
+#pragma unroll
         for(int z = 0; z < nStreams; z++){
             cudaMemcpy(p_buffer_dest,&test[height*width*z],cpu_source->size()*sizeof(pfc::pixel_t), cudaMemcpyHostToHost);
             if(save) {
@@ -276,6 +287,7 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
 
 
     }
+#pragma unroll
     for (int i = 0; i < nStreams; i ++)
     {
         check(cudaStreamDestroy(stream[i]));
@@ -284,6 +296,7 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     cudaFreeHost(test);
     free_memory(gpu);
     check(cudaDeviceReset());
+    cudaDeviceSynchronize();
 
     std::cout << "GPU Calculation took " << time << "ms\n" << std::endl;
 
@@ -329,7 +342,7 @@ int main ()  {
         //General
         int count = 200;
         int store_cnt = 0;
-        bool save = true;
+        bool save = false;
 
         int height = 4608;
         int width = 8192;
@@ -351,7 +364,7 @@ int main ()  {
 
         //warm_up();
         std::cout << "\033[22;31mCPU Calculation" << std::endl;
-        auto time_cpu = 11; //calc_cpu(count,left, right, zPoint,0.95,height,width,1000, save);
+        auto time_cpu = 11;//calc_cpu(count,left, right, zPoint,0.95,height,width,1000, save);
 
         auto size = height*width * sizeof(pfc::BGR_4_t) * count/1000000;
 
