@@ -13,6 +13,17 @@
 
 using namespace std;
 
+class StringException : public std::exception{
+protected:
+    const std::string _message;
+    const int _line;
+public:
+    explicit inline StringException(const std::string & message, const int line ) : _message(message), _line(line) {};
+    inline std::string what(){
+        return "ERROR: <" + _message   + "> in Line <" + std::to_string(_line) + ">";
+    }
+};
+
 inline float norm(complex<float> & z)
 {
     auto x = z.real() * z.real();
@@ -67,6 +78,7 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
 
 
                 complex<float> c[16] = {0};
+#pragma unroll
                 for (int y = begin; y < end; y++) {
                     //21 s
                     //18 s
@@ -192,9 +204,10 @@ std::pair<std::vector<std::shared_ptr<pfc::bitmap>>, int> CalculateOnCPU(std::si
 
 void store(const std::string prefix, std::vector<std::shared_ptr<pfc::bitmap>> slides, int & cnt){
     std::cout << "\033[01;37mStoring Files... Pls Wait" << std::endl;
+#pragma unroll
     for(const auto & c : slides){
         if(c == nullptr){
-            throw std::string("Failure; Empty Picture");
+            throw StringException("Failure; Empty Picture", __LINE__);
         }
         c->to_file(prefix + std::to_string(cnt) + ".bmp");
         cnt++;
@@ -215,12 +228,12 @@ void copy_to_gpu(pfc::pixel_t *& cpu, pfc::pixel_t *& gpu, int size) {
 void copy_to_cpu(pfc::pixel_t *& cpu, pfc::pixel_t *& gpu, int size) {
     check(cudaMemcpy(cpu, gpu, size * sizeof(pfc::pixel_t), cudaMemcpyDeviceToHost));
 }
-void allocate_memory(std::shared_ptr<pfc::bitmap> & cpu_source, std::shared_ptr<pfc::bitmap> & cpu_destination, pfc::pixel_t *& gpu, int width, int height) {
+void allocate_memory(std::shared_ptr<pfc::bitmap> & cpu_source, std::shared_ptr<pfc::bitmap> & cpu_destination, pfc::pixel_t *& gpu, int width, int height, int cnt) {
     cpu_source = std::make_shared<pfc::bitmap>(width, height);
     cpu_destination = std::make_shared<pfc::bitmap>(width, height);
 
     //GPU Malloc
-    check(cudaMalloc(&gpu, cpu_source->size()*sizeof(pfc::pixel_t)*25));
+    check(cudaMalloc(&gpu, cpu_source->size()*sizeof(pfc::pixel_t)*cnt));
 }
 void free_memory(pfc::pixel_t *& gpu) {
     check(cudaFree(gpu)); gpu = nullptr;
@@ -240,11 +253,12 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
     std::cout << "-----------------------------------" << std::endl;
 
     cudaDeviceSynchronize();
-    allocate_memory(cpu_source,cpu_destination,gpu,width,height);
-
-
     const int nStreams = 25;
     cudaStream_t stream[nStreams] = {};
+    allocate_memory(cpu_source,cpu_destination,gpu,width,height, nStreams);
+
+
+#pragma unroll
     for (int i = 0; i < nStreams ; i ++)
     {
         check(cudaStreamCreate(&stream[i]));
@@ -269,7 +283,7 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
 
             pfc::parallel_range<size_t>(nStreams, nStreams, [&](size_t t, size_t begin, size_t end) {
                 int size = cpu_source->size();
-                check(call_iteration_kernel(&gpu[(size)*begin],left,right,zPoint, height, width,factor, &stream[begin], c++));
+                check(call_iteration_kernel(&gpu[(size)*begin],left,right,zPoint, factor, &stream[begin], c++));
                 check(cudaMemcpyAsync(&test[(size)*begin], &gpu[(size)*begin], cpu_source->size() * sizeof(pfc::pixel_t), cudaMemcpyDeviceToHost, stream[begin]));
                 check(cudaStreamSynchronize(stream[begin]));
             });
@@ -315,27 +329,50 @@ void warm_up(){
 int calc_cpu(std::size_t count, complex<float> & left, complex<float> & right, const complex<float> & zPoint, const float factor, std::size_t height, std::size_t width, std::size_t additional_threads = 0, const bool save = false){
     int store_cnt = 0;
 
-    auto slides_0_100 = CalculateOnCPU(count/2,left, right, zPoint,factor,height,width,additional_threads);
-    if(slides_0_100.first.empty()){
-        throw std::string("First Vector in CPU Calculation is Empty");
+    auto slides_0_50 = CalculateOnCPU(count/4,left, right, zPoint,factor,height,width,additional_threads);
+    if(slides_0_50.first.empty()){
+        throw StringException("First Vector in CPU Calculation is Empty", __LINE__);
     }
     if(save){
         std::cout << "Storing First Chunk of Data" << std::endl;
-        store("Mandel_CPU_", slides_0_100.first, store_cnt);
+        store("Mandel_CPU_", slides_0_50.first, store_cnt);
         std::cout << "Done" << std::endl;
     }
-    slides_0_100.first.clear();
+    slides_0_50.first.clear();
 
-    auto slides_100_200 = CalculateOnCPU(count/2,left, right, zPoint,factor,height,width,additional_threads);
-    if(slides_100_200.first.empty()){
-        throw std::string("First Vector in CPU Calculation is Empty");
+    auto slides_50_100 = CalculateOnCPU(count/4,left, right, zPoint,factor,height,width,additional_threads);
+    if(slides_50_100.first.empty()){
+        throw StringException("Second Vector in CPU Calculation is Empty",__LINE__);
     }
     if(save){
         std::cout << "Storing Second Chunk of Data" << std::endl;
-        store("Mandel_CPU_", slides_100_200.first, store_cnt);
+        store("Mandel_CPU_", slides_50_100.first, store_cnt);
         std::cout << "Done" << std::endl;
     }
-    return slides_100_200.second + slides_0_100.second;
+    slides_50_100.first.clear();
+
+    auto slides_100_150 = CalculateOnCPU(count/4,left, right, zPoint,factor,height,width,additional_threads);
+    if(slides_100_150.first.empty()){
+        throw StringException("Third Vector in CPU Calculation is Empty",__LINE__);
+    }
+    if(save){
+        std::cout << "Storing Second Chunk of Data" << std::endl;
+        store("Mandel_CPU_", slides_100_150.first, store_cnt);
+        std::cout << "Done" << std::endl;
+    }
+    slides_100_150.first.clear();
+
+    auto slides_150_200 = CalculateOnCPU(count/4,left, right, zPoint,factor,height,width,additional_threads);
+    if(slides_150_200.first.empty()){
+        throw StringException("Last Vector in CPU Calculation is Empty", __LINE__);
+    }
+    if(save){
+        std::cout << "Storing Second Chunk of Data" << std::endl;
+        store("Mandel_CPU_", slides_150_200.first, store_cnt);
+        std::cout << "Done" << std::endl;
+    }
+    slides_150_200.first.clear();
+    return slides_0_50.second + slides_50_100.second + slides_100_150.second + slides_150_200.second;
 }
 
 int main ()  {
@@ -366,13 +403,13 @@ int main ()  {
 
         warm_up();
         std::cout << "\033[22;31mCPU Calculation" << std::endl;
-        auto time_cpu = 11;//calc_cpu(count,left, right, zPoint,0.95,height,width,1000, save);
+        auto time_cpu = calc_cpu(count,left, right, zPoint,0.95,height,width,1000, save);
 
         auto size = height*width * sizeof(pfc::BGR_4_t) * count/1000000;
 
 
         if(time_cpu == 0 || time_gpu == 0){
-            throw std::string("Invalid Time measured");
+            throw StringException("Invalid Time measured", __LINE__);
         }
 
         std::cout << "\033[01;37m" << std::endl;
@@ -392,6 +429,9 @@ int main ()  {
         std::cout << "Speedup(%):  " << time_cpu*100/time_gpu << std::endl;
         std::cout << std::endl;
 
+    }
+    catch (StringException & exe) {
+        std::cerr << exe.what() << std::endl;
     }
     catch (const std::string & exe) {
         std::cerr << "Failed with Message: " << exe << std::endl;
