@@ -266,7 +266,7 @@ int checked_main(complex<float> & left, complex<float> & right, const complex<fl
 
             pfc::parallel_range<size_t>(nStreams, nStreams, [&](size_t t, size_t begin, size_t end) {
                 int size = cpu_source->size();
-                static const auto thread_cnt = 100;
+                static const auto thread_cnt = 1024;
                 pfc::parallel_range<size_t>(thread_cnt, thread_cnt, [&](size_t t2, size_t begin2, size_t end2) {
                     const static auto offset_base = height*width/thread_cnt;
                     const auto offset = offset_base*begin2;
