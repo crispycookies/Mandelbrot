@@ -414,7 +414,7 @@ int main ()  {
 
         std::cout << "\033[01;37m" << std::endl;
 
-        std::cout << "CPU:         " << "I7 8750H @ ? GHz" << std::endl;
+        std::cout << "CPU:         " << "R7 3700x @ 4.3 GHz" << std::endl;
         std::cout << "Runtime:     " << time_cpu << "ms (for " << std::to_string(count) << " Bitmaps and " << std::to_string(size) << "MB of Data)" << std::endl;
         std::cout << "throughput:  " << size/((float)time_cpu/1000) << "MB/s" << std::endl;
         std::cout << std::endl;
